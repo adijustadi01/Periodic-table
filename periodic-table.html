@@ -110,7 +110,7 @@ sub { font-size: 0.72em; line-height: 0; }
 .spotlight h3 { margin: 0 0 2px; font-family: var(--display); font-size: 14px; color: var(--c); }
 .spotlight p { margin: 0; font-size: 13.5px; color: var(--ink); }
 
-.hint { margin-left: auto; margin-right: auto; padding: 8px 14px; font-size: 13px; color: var(--muted); transition: opacity 0.8s; text-align: center; }
+.hint { margin-left: auto; margin-right: 200px; padding: 8px 14px; font-size: 13px; color: var(--muted); transition: opacity 0.8s; text-align: center; }
 .hint b { color: var(--ink); font-weight: 700; }
 .hint-touch { display: none; }
 @media (pointer: coarse) { .hint-mouse { display: none; } .hint-touch { display: inline; } }
@@ -191,6 +191,20 @@ button.rx-el:hover { background: color-mix(in srgb, var(--ec) 32%, transparent);
 .p-nav span { font-weight: 700; }
 .note-box { font-size: 13px; color: var(--muted); padding: 10px 12px; border-radius: 10px; border: 1px dashed var(--line); margin: 0; }
 
+.navpad {
+  pointer-events: auto; position: absolute; z-index: 2; padding: 6px; display: grid; gap: 4px;
+  right: max(16px, env(safe-area-inset-right, 0px)); bottom: max(14px, env(safe-area-inset-bottom, 0px));
+  grid-template-columns: repeat(3, 38px) 8px 38px; grid-template-rows: repeat(3, 38px);
+  grid-template-areas: ". up . . zin" "left . right . ." ". down . . zout";
+  transition: transform 0.45s cubic-bezier(.2,.8,.2,1);
+}
+.navpad button { border: 1px solid var(--line); background: rgba(255,255,255,0.05); border-radius: 10px; display: grid; place-items: center; padding: 0; touch-action: none; }
+.navpad button:hover { border-color: rgba(143, 211, 255, 0.55); background: rgba(143, 211, 255, 0.12); }
+.navpad button:active { background: rgba(143, 211, 255, 0.28); }
+.navpad svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+body.panel-open .navpad { transform: translateX(-454px); }
+.lost { pointer-events: auto; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); height: 48px; font-size: 15px; }
+.overlay { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 24px; background: rgba(5, 6, 15, 0.6); }
 #fallback { position: fixed; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; }
 
 @media (max-width: 820px) {
@@ -200,6 +214,7 @@ button.rx-el:hover { background: color-mix(in srgb, var(--ec) 32%, transparent);
     transform: translateY(calc(100% + 20px));
   }
   .p-scroll { padding-inline: max(16px, 4vw); }
+  body.panel-open .navpad { transform: none; visibility: hidden; }
 }
 @media (max-width: 640px) {
   .brand h1 { font-size: 18px; }
@@ -210,7 +225,8 @@ button.rx-el:hover { background: color-mix(in srgb, var(--ec) 32%, transparent);
   #legendToggle { display: inline-flex; }
   .legend { position: absolute; bottom: 64px; left: max(16px, env(safe-area-inset-left, 0px)); }
   .legend[data-collapsed="true"] { display: none; }
-  .hint { position: absolute; left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); bottom: 64px; pointer-events: none; }
+  .hint { margin: 0; position: absolute; left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); bottom: 150px; pointer-events: none; }
+  .navpad { grid-template-columns: repeat(3, 34px) 4px 34px; grid-template-rows: repeat(3, 34px); }
   .spotlight { max-width: none; flex: 1; }
   .p-head { grid-template-columns: 88px 1fr; }
   .p-tile .sym { font-size: 32px; }
@@ -257,9 +273,18 @@ button.rx-el:hover { background: color-mix(in srgb, var(--ec) 32%, transparent);
       <ul id="legendList"></ul>
     </div>
     <div class="spotlight glass" id="spotlight" hidden></div>
+    <div class="navpad glass" id="navpad" role="group" aria-label="Move the view">
+      <button type="button" data-act="up" aria-label="Slide up" title="Slide up (↑)" style="grid-area: up"><svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button>
+      <button type="button" data-act="left" aria-label="Slide left" title="Slide left (←)" style="grid-area: left"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <button type="button" data-act="right" aria-label="Slide right" title="Slide right (→)" style="grid-area: right"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+      <button type="button" data-act="down" aria-label="Slide down" title="Slide down (↓)" style="grid-area: down"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+      <button type="button" data-act="in" aria-label="Zoom in" title="Zoom in (+)" style="grid-area: zin"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+      <button type="button" data-act="out" aria-label="Zoom out" title="Zoom out (−)" style="grid-area: zout"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+    </div>
+    <button type="button" class="btn primary lost" id="lost" hidden>Nothing here. Back to the table</button>
     <div class="hint glass" id="hint" role="status">
-      <span class="hint-mouse"><b>Left-drag</b> rotate · <b>Right-drag</b> slide · <b>Scroll</b> zoom to the pointer · <b>Click</b> a tile to fly to it</span>
-      <span class="hint-touch"><b>One finger</b> rotate · <b>Two fingers</b> slide &amp; pinch to zoom · <b>Tap</b> a tile</span>
+      <span class="hint-mouse"><b>Drag</b> rotate · <b>Right-drag, Shift+drag, two-finger swipe or arrow keys</b> slide · <b>Wheel or pinch</b> zoom · <b>Click</b> a tile</span>
+      <span class="hint-touch"><b>One finger</b> rotate · <b>Two fingers</b> slide &amp; pinch to zoom · <b>Arrows</b> bottom-right slide · <b>Tap</b> a tile</span>
     </div>
   </div>
 </div>
@@ -273,6 +298,14 @@ button.rx-el:hover { background: color-mix(in srgb, var(--ec) 32%, transparent);
   </div>
   <div class="p-scroll" id="pBody"></div>
 </aside>
+
+<div id="glLost" class="overlay" hidden>
+  <div class="glass" style="padding: 20px 22px; max-width: 360px">
+    <h2 style="margin: 0 0 6px; font-family: var(--display); font-size: 18px">The 3D view stopped</h2>
+    <p style="margin: 0 0 14px; color: var(--muted)">Your computer's graphics reset (this can happen after sleep or when memory runs low). Reloading brings everything back.</p>
+    <button type="button" class="btn primary" id="glReload">Reload</button>
+  </div>
+</div>
 
 <div id="fallback" hidden>
   <div>
@@ -2192,13 +2225,13 @@ const DETAILS = {
 
   function select(el) {
     state.selected = el; renderPanel(el);
-    panel.classList.add("open"); panel.setAttribute("aria-hidden", "false");
+    panel.classList.add("open"); panel.setAttribute("aria-hidden", "false"); document.body.classList.add("panel-open");
     el.node.add(selRing); selRing.visible = true;
     flyToElement(el); hideHint(); updateViewOffset();
   }
   function closePanel() {
     if (!state.selected) return;
-    state.selected = null; panel.classList.remove("open"); panel.setAttribute("aria-hidden", "true");
+    state.selected = null; panel.classList.remove("open"); panel.setAttribute("aria-hidden", "true"); document.body.classList.remove("panel-open");
     selRing.visible = false; if (selRing.parent) selRing.parent.remove(selRing);
     updateViewOffset();
   }
@@ -2291,6 +2324,9 @@ const DETAILS = {
     if (e.target === q) return;
     if (e.key === "Escape") closePanel();
     else if (e.key === "/") { e.preventDefault(); q.focus(); }
+    else if (!state.selected && e.key.startsWith("Arrow")) { e.preventDefault(); padAction({ ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down" }[e.key]); }
+    else if (e.key === "+" || e.key === "=") padAction("in");
+    else if (e.key === "-" || e.key === "_") padAction("out");
     else if (state.selected && e.key === "ArrowRight") select(ELEMENTS[state.selected.z % 118]);
     else if (state.selected && e.key === "ArrowLeft") select(ELEMENTS[(state.selected.z + 116) % 118]);
   });
@@ -2307,22 +2343,26 @@ const DETAILS = {
   const cvs = renderer.domElement;
   function userInput() { state.lastInput = performance.now(); state.tween = null; state.atHome = false; hideHint(); }
 
-  /* Zoom toward the pointer: the point under the cursor stays put, so you can zoom into any corner of the table
-     instead of always into the orbit centre. Zooming far out eases the centre back to the middle of the table. */
+  /* ---------- sliding (pan) and zooming helpers ---------- */
   const zPlane = new THREE.Plane(), zHit = new THREE.Vector3(), zDir = new THREE.Vector3();
-  document.addEventListener("wheel", e => {
-    if (e.target !== cvs) return;
-    e.preventDefault(); e.stopPropagation(); // handled here instead of by OrbitControls
-    userInput();
-    const delta = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
-    let s = Math.exp(Math.max(-1, Math.min(1, delta / 300)) * 0.35);
+  const vRight = new THREE.Vector3(), vUp = new THREE.Vector3();
+  // Slide the view by a number of screen pixels (dx > 0 = move right, dy > 0 = move down).
+  function panBy(dx, dy) {
+    const dist = camera.position.distanceTo(controls.target);
+    const wpp = 2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / innerHeight;
+    vRight.setFromMatrixColumn(camera.matrix, 0).multiplyScalar(dx * wpp);
+    vUp.setFromMatrixColumn(camera.matrix, 1).multiplyScalar(-dy * wpp);
+    const move = vRight.add(vUp); camera.position.add(move); controls.target.add(move);
+  }
+  // Zoom by factor s (< 1 = closer) keeping the point under (cx, cy) fixed on screen.
+  function zoomAt(cx, cy, s) {
     const dist = camera.position.distanceTo(controls.target);
     s = Math.max(controls.minDistance / dist, Math.min(controls.maxDistance / dist, s));
     const r = cvs.getBoundingClientRect();
-    ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ndc, camera);
     camera.getWorldDirection(zDir); zPlane.setFromNormalAndCoplanarPoint(zDir, controls.target);
-    const anchor = ray.ray.intersectPlane(zPlane, zHit) ? zHit : controls.target;
+    const anchor = ray.ray.intersectPlane(zPlane, zHit) ? zHit.clone() : controls.target.clone();
     camera.position.sub(anchor).multiplyScalar(s).add(anchor);
     controls.target.sub(anchor).multiplyScalar(s).add(anchor);
     if (s > 1) { // zooming out: drift the orbit centre home so the whole table always comes back into view
@@ -2330,7 +2370,57 @@ const DETAILS = {
       const pull = Math.max(0, Math.min(1, (nd - homeDist * 0.45) / homeDist)) * 0.3;
       if (pull > 0) { const shift = h.target.clone().sub(controls.target).multiplyScalar(pull); controls.target.add(shift); camera.position.add(shift); }
     }
+  }
+  /* Wheel / trackpad:
+     - trackpad two-finger swipe (any direction) -> slide
+     - trackpad pinch (arrives as ctrl + wheel) or a mouse wheel -> zoom toward the pointer */
+  let trackpadUntil = 0;
+  function looksLikeTrackpad(e) {
+    const now = performance.now();
+    if (e.deltaMode !== 0) return false;                         // line/page scrolling = mouse wheel
+    if (e.deltaX !== 0) { trackpadUntil = now + 500; return true; } // sideways scrolling only comes from trackpads
+    if (now < trackpadUntil) return true;                         // same swipe gesture still going
+    if (e.wheelDeltaY && Math.abs(e.wheelDeltaY) % 120 === 0) return false; // classic wheel notch
+    return Math.abs(e.deltaY) < 50;                                // small, smooth steps = trackpad
+  }
+  document.addEventListener("wheel", e => {
+    if (e.target !== cvs) return;
+    e.preventDefault(); e.stopPropagation(); // handled here instead of by OrbitControls
+    userInput();
+    const scale = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1;
+    if (e.ctrlKey) { // pinch on a trackpad (or ctrl + wheel)
+      zoomAt(e.clientX, e.clientY, Math.exp(Math.max(-1, Math.min(1, e.deltaY * scale / 100)) * 0.25));
+    } else if (looksLikeTrackpad(e)) {
+      panBy(e.deltaX * scale, e.deltaY * scale);
+    } else {
+      zoomAt(e.clientX, e.clientY, Math.exp(Math.max(-1, Math.min(1, e.deltaY * scale / 300)) * 0.35));
+    }
   }, { capture: true, passive: false });
+
+  /* On-screen slide & zoom buttons (hold to keep moving) */
+  let padTimer = 0;
+  function padAction(act) {
+    userInput();
+    const step = Math.min(innerWidth, innerHeight) * 0.06;
+    if (act === "left") panBy(-step, 0); else if (act === "right") panBy(step, 0);
+    else if (act === "up") panBy(0, -step); else if (act === "down") panBy(0, step);
+    else if (act === "in" || act === "out") {
+      const r = cvs.getBoundingClientRect();
+      zoomAt(r.left + r.width / 2, r.top + r.height / 2, act === "in" ? 0.9 : 1.11);
+    }
+  }
+  function stopPad() { clearInterval(padTimer); padTimer = 0; }
+  $("navpad").addEventListener("pointerdown", e => {
+    const b = e.target.closest("button[data-act]"); if (!b) return;
+    e.preventDefault(); stopPad(); padAction(b.dataset.act);
+    padTimer = setInterval(() => padAction(b.dataset.act), 40);
+  });
+  ["pointerup", "pointercancel", "pointerleave"].forEach(t => $("navpad").addEventListener(t, stopPad));
+  addEventListener("blur", stopPad);
+  $("navpad").addEventListener("keydown", e => { // keyboard users: Enter/Space on a focused button
+    const b = e.target.closest("button[data-act]"); if (b && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); padAction(b.dataset.act); }
+  });
+  $("lost").addEventListener("click", () => resetView());
   cvs.addEventListener("pointerdown", e => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; userInput(); });
   cvs.addEventListener("pointerup", e => {
     if (!down) return; const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
@@ -2366,6 +2456,33 @@ const DETAILS = {
   }
   addEventListener("resize", resize);
 
+  /* ---------- safety nets: never lose the table ---------- */
+  const fence = new THREE.Box3(), clampV = new THREE.Vector3(), frustum = new THREE.Frustum(), pv = new THREE.Matrix4(), wp = new THREE.Vector3();
+  let lastVisCheck = 0, emptySince = 0, fenceFor = null;
+  function keepNearTable(now) {
+    // 1) broken numbers (should never happen) -> snap back to the overview
+    const p = camera.position, t = controls.target;
+    if (![p.x, p.y, p.z, t.x, t.y, t.z].every(Number.isFinite)) { const h = homeView(); p.copy(h.pos); t.copy(h.target); state.tween = null; return; }
+    // 2) the orbit centre may not slide more than a few tiles beyond the edge of the table
+    if (!state.tween) {
+      if (fenceFor !== state.layout) { fence.copy(layoutBounds()).expandByScalar(4); fenceFor = state.layout; }
+      clampV.copy(t).clamp(fence.min, fence.max);
+      if (!clampV.equals(t)) { const d = clampV.sub(t); t.add(d); p.add(d); }
+    }
+    // 3) if no element is on screen for a moment, offer a one-click way back
+    if (now - lastVisCheck < 400) return; lastVisCheck = now;
+    camera.updateMatrixWorld(); pv.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); frustum.setFromProjectionMatrix(pv);
+    let visible = 0;
+    for (let i = 0; i < nodes.length && !visible; i++) { nodes[i].getWorldPosition(wp); if (frustum.containsPoint(wp)) visible++; }
+    if (visible || state.tween) emptySince = 0; else if (!emptySince) emptySince = now;
+    $("lost").hidden = !(emptySince && now - emptySince > 700);
+  }
+
+  /* If the graphics card resets (it can happen when a laptop sleeps or runs low on memory), WebGL goes black.
+     Tell the person and offer a reload instead of leaving a blank screen. */
+  cvs.addEventListener("webglcontextlost", e => { e.preventDefault(); $("glLost").hidden = false; });
+  $("glReload").addEventListener("click", () => location.reload());
+
   /* ---------- main loop ---------- */
   const tmpQ = new THREE.Quaternion(), invWorld = new THREE.Quaternion();
   let last = performance.now();
@@ -2378,6 +2495,7 @@ const DETAILS = {
       if (k >= 1) { const done = tw.done; state.tween = null; if (done) done(); }
     }
     controls.update();
+    keepNearTable(now);
     // ambient sway when idle (frozen while a panel is open so the camera target stays put)
     const idle = state.atHome && !state.selected && !state.tween && now - state.lastInput > 5000 && !reduceMotion;
     if (idle) state.swayPhase += dt * 0.1;

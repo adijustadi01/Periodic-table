@@ -12,8 +12,10 @@ Other features: search by name, symbol or number (press `/`); **Surprise me** fo
 click a family in the legend to light it up; switch between **Galaxy** (family clusters) and **Table** (classic layout);
 arrow keys step through the elements while a panel is open.
 
-Controls: left-drag rotates, right-drag (or two fingers) slides across the table, and scroll zooms toward the pointer
-(pinch on touch). Clicking a tile flies to it and makes it the centre of rotation; **Reset view** returns to the overview.
+Controls: drag rotates. To slide across the table, use right-drag, Shift+drag, a two-finger trackpad swipe,
+two fingers on a touchscreen, the arrow keys, or the on-screen arrow pad. The mouse wheel or a pinch zooms toward the pointer
+(the + and − buttons and keys also work). Clicking a tile flies to it and makes it the centre of rotation.
+**Reset view** returns to the overview, and if you ever end up looking at empty space a "Back to the table" button appears.
 
 ## Run it
 
