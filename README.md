@@ -14,8 +14,13 @@ arrow keys step through the elements while a panel is open; works with touch (dr
 
 ## Run it
 
-Open `index.html` in a modern browser. It's a single file with no build step. It loads Three.js r128 from a CDN
-and fonts from Google Fonts, so it needs an internet connection.
+- **Offline (recommended):** double-click `periodic-table.html`. Three.js, the orbit controls and the fonts are all
+  embedded in it, so it works with no internet connection. Copy it anywhere.
+- **Online:** `index.html` is the source version. It loads Three.js r128 from a CDN and fonts from Google Fonts.
+
+To rebuild the offline file after editing `index.html`:
+`python3 tools/build_offline.py <unpacked three@0.128.0 package> <folder of @fontsource latin woff2 files>`
+(details are at the top of the script).
 
 ## Reviewing or correcting the data
 
