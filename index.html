@@ -1,0 +1,1329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<!--@FRAGMENT-START@-->
+<title>Element Galaxy</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500;700&family=Unbounded:wght@500;700;800&display=swap">
+<style>
+/* Layout: a full-bleed WebGL starfield with a thin glass HUD around the edges and a slide-in "field guide" panel. */
+:root {
+  --space: #05060f;          /* deep space background */
+  --glass: rgba(13, 16, 36, 0.82);
+  --glass-strong: rgba(10, 12, 28, 0.94);
+  --ink: #eef1ff;            /* starlight text */
+  --muted: #a3abd0;
+  --line: rgba(160, 175, 255, 0.18);
+  --accent: #8fd3ff;         /* UI accent: pale comet blue */
+  --display: "Unbounded", "Trebuchet MS", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body {
+  margin: 0; overflow: hidden; background: var(--space); color: var(--ink);
+  font-family: var(--body); font-size: 15px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+#scene { position: fixed; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+sub { font-size: 0.72em; line-height: 0; }
+
+/* ---------- HUD ---------- */
+#hud {
+  position: fixed; inset: 0; pointer-events: none;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: max(14px, env(safe-area-inset-top, 0px)) max(14px, env(safe-area-inset-bottom, 0px));
+  display: grid; grid-template-rows: auto 1fr auto; gap: 12px;
+}
+#hud > * { min-width: 0; }
+.top { display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap; }
+.brand { pointer-events: auto; display: grid; gap: 2px; margin-right: auto; }
+.brand h1 { margin: 0; font-family: var(--display); font-weight: 800; font-size: 22px; letter-spacing: 0.02em; line-height: 1.1; text-wrap: balance; }
+.brand h1 span { color: var(--accent); }
+.brand p { margin: 0; color: var(--muted); font-size: 13px; }
+.glass { background: var(--glass); border: 1px solid var(--line); border-radius: 14px; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+
+.search { pointer-events: auto; position: relative; width: min(320px, 100%); }
+.search input {
+  width: 100%; box-sizing: border-box; height: 42px; padding: 0 14px 0 40px;
+  background: var(--glass); border: 1px solid var(--line); border-radius: 12px;
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+}
+.search input::placeholder { color: var(--muted); }
+.search svg { position: absolute; z-index: 1; pointer-events: none; left: 13px; top: 12px; width: 18px; height: 18px; stroke: var(--muted); fill: none; stroke-width: 2; }
+.results { position: absolute; top: 48px; left: 0; right: 0; margin: 0; padding: 6px; list-style: none; max-height: 50vh; overflow: auto; }
+.results li button {
+  width: 100%; display: grid; grid-template-columns: 40px 1fr auto; align-items: center; gap: 10px;
+  padding: 6px 8px; border: 0; border-radius: 9px; background: transparent; text-align: left;
+}
+.results li button[aria-selected="true"], .results li button:hover { background: rgba(143, 211, 255, 0.12); }
+.mini-sym { display: grid; place-items: center; width: 40px; height: 34px; border-radius: 7px; font-family: var(--display); font-weight: 700; font-size: 14px; color: #0a0c1c; background: var(--c); }
+.results .z { font-family: var(--mono); color: var(--muted); font-size: 12px; }
+
+.tools { pointer-events: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  height: 42px; padding: 0 16px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--glass); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; white-space: nowrap;
+}
+.btn:hover { border-color: rgba(143, 211, 255, 0.55); }
+.btn.primary { background: linear-gradient(135deg, rgba(143, 211, 255, 0.28), rgba(218, 119, 242, 0.24)); border-color: rgba(143, 211, 255, 0.5); }
+.btn svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.seg { display: inline-flex; padding: 3px; gap: 3px; height: 42px; box-sizing: border-box; border-radius: 12px; border: 1px solid var(--line); background: var(--glass); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+.seg button { border: 0; background: transparent; border-radius: 9px; padding: 0 12px; font-weight: 700; font-size: 13px; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: rgba(143, 211, 255, 0.18); color: var(--ink); }
+
+.bottom { display: flex; align-items: flex-end; gap: 12px; }
+.legend { pointer-events: auto; padding: 10px; width: 236px; box-sizing: border-box; }
+.legend-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 4px 6px; }
+.legend-head h2 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.legend-head button { border: 0; background: transparent; color: var(--accent); font-size: 12px; font-weight: 700; padding: 2px 4px; }
+.legend ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+.legend li button {
+  width: 100%; display: flex; align-items: center; gap: 10px; padding: 5px 6px; border: 0; border-radius: 8px;
+  background: transparent; text-align: left; font-size: 13.5px;
+}
+.legend li button:hover { background: rgba(255, 255, 255, 0.06); }
+.legend li button[aria-pressed="true"] { background: rgba(255, 255, 255, 0.1); }
+.legend .dot { width: 12px; height: 12px; border-radius: 4px; background: var(--c); box-shadow: 0 0 10px var(--c); flex: none; }
+.legend .count { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.legend.dim li button[aria-pressed="false"] { opacity: 0.45; }
+#legendToggle { display: none; }
+
+.spotlight { pointer-events: auto; max-width: 360px; padding: 12px 14px; border-left: 3px solid var(--c); }
+.spotlight h3 { margin: 0 0 2px; font-family: var(--display); font-size: 14px; color: var(--c); }
+.spotlight p { margin: 0; font-size: 13.5px; color: var(--ink); }
+
+.hint { margin-left: auto; margin-right: auto; padding: 8px 14px; font-size: 13px; color: var(--muted); transition: opacity 0.8s; text-align: center; }
+.hint b { color: var(--ink); font-weight: 700; }
+
+/* ---------- Detail panel ---------- */
+#panel {
+  position: fixed; z-index: 5; top: max(14px, env(safe-area-inset-top, 0px)); bottom: max(14px, env(safe-area-inset-bottom, 0px));
+  right: max(14px, env(safe-area-inset-right, 0px)); width: 440px; box-sizing: border-box;
+  background: var(--glass-strong); border: 1px solid var(--line); border-radius: 20px;
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  display: flex; flex-direction: column; overflow: hidden;
+  transform: translateX(calc(100% + 30px)); transition: transform 0.45s cubic-bezier(.2,.8,.2,1);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+#panel.open { transform: none; }
+.p-bar { display: flex; align-items: center; gap: 6px; padding: 10px 10px 0 16px; }
+.p-bar .crumb { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-right: auto; }
+.icon-btn { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255,255,255,0.04); display: grid; place-items: center; }
+.icon-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.p-scroll { overflow-y: auto; padding: 8px 20px 24px; display: grid; grid-auto-rows: max-content; align-content: start; gap: 22px; overscroll-behavior: contain; flex: 1; min-height: 0; }
+.p-head { display: grid; grid-template-columns: 112px 1fr; gap: 16px; align-items: center; }
+.p-tile {
+  aspect-ratio: 4 / 5; max-width: 100%; border-radius: 14px; border: 3px solid var(--c); position: relative;
+  background: linear-gradient(150deg, color-mix(in srgb, var(--c) 40%, transparent), rgba(10,12,28,0.9) 60%);
+  box-shadow: 0 0 28px color-mix(in srgb, var(--c) 45%, transparent);
+  display: grid; place-items: center;
+}
+.p-tile .z { position: absolute; top: 7px; left: 9px; font-family: var(--mono); font-weight: 700; font-size: 14px; }
+.p-tile .sym { font-family: var(--display); font-weight: 800; font-size: 40px; line-height: 1; }
+.p-tile .m { position: absolute; bottom: 8px; left: 0; right: 0; text-align: center; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.p-head h2 { margin: 2px 0 6px; font-family: var(--display); font-weight: 800; font-size: 28px; line-height: 1.1; text-wrap: balance; overflow-wrap: anywhere; }
+.fam-chip {
+  display: inline-flex; align-items: center; gap: 7px; padding: 3px 10px 3px 8px; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--c) 60%, transparent); background: color-mix(in srgb, var(--c) 14%, transparent);
+  color: var(--c); font-size: 12.5px; font-weight: 700;
+}
+.fam-chip::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.about { margin: 0; font-size: 15.5px; }
+.ident { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin: 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: var(--line); }
+.ident div { background: rgba(14, 17, 38, 0.95); padding: 8px 10px; min-width: 0; }
+.ident dt { font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.ident dd { margin: 1px 0 0; font-family: var(--mono); font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.sec h3 { margin: 0 0 10px; font-family: var(--display); font-weight: 700; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.atom-wrap { display: grid; grid-template-columns: 1fr; justify-items: center; gap: 8px; padding: 10px; border-radius: 16px; border: 1px solid var(--line); background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--c) 10%, transparent), transparent 65%); }
+#atom { width: 100%; max-width: 330px; aspect-ratio: 1; display: block; }
+.shell-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.shell-row span { font-family: var(--mono); font-size: 12px; padding: 2px 8px; border-radius: 6px; background: rgba(255,255,255,0.06); }
+.shell-row span b { color: var(--c); }
+.atom-note { margin: 0; text-align: center; font-size: 13.5px; color: var(--muted); max-width: 36ch; }
+.atom-note strong { color: var(--ink); }
+
+.reactions { padding: 14px; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); background: linear-gradient(160deg, color-mix(in srgb, var(--c) 12%, transparent), transparent 70%); }
+.reactions h3 { color: var(--c); }
+.rx-list { display: grid; gap: 10px; }
+.rx { display: grid; gap: 8px; padding: 10px; border-radius: 12px; background: rgba(6, 8, 20, 0.6); border: 1px solid var(--line); }
+.rx-eq { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.rx-el {
+  display: inline-grid; grid-template-columns: auto auto; align-items: baseline; gap: 5px; padding: 4px 9px 4px 7px; border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--ec) 70%, transparent); background: color-mix(in srgb, var(--ec) 16%, transparent); font-size: 13px;
+}
+button.rx-el:hover { background: color-mix(in srgb, var(--ec) 32%, transparent); }
+.rx-el b { font-family: var(--display); font-size: 13px; color: var(--ec); }
+.rx-el.self { opacity: 0.8; }
+.rx-op { color: var(--muted); font-weight: 700; }
+.rx-prod { display: inline-flex; align-items: baseline; gap: 8px; padding: 4px 10px; border-radius: 8px; background: rgba(255,255,255,0.08); }
+.rx-prod .fx { font-family: var(--mono); font-weight: 700; font-size: 14px; }
+.rx-prod .nm { font-weight: 700; }
+.rx-meta { font-size: 13px; color: var(--muted); display: grid; gap: 2px; }
+.rx-meta code { font-family: var(--mono); color: var(--ink); font-size: 12.5px; }
+.rx-empty { margin: 0; font-size: 14px; }
+.list { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.list li { position: relative; padding-left: 20px; }
+.list li::before { content: ""; position: absolute; left: 3px; top: 0.6em; width: 7px; height: 7px; border-radius: 2px; background: var(--c); transform: rotate(45deg); }
+.p-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.p-nav button { display: grid; gap: 1px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,0.03); text-align: left; }
+.p-nav button:last-child { text-align: right; }
+.p-nav small { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+.p-nav span { font-weight: 700; }
+.note-box { font-size: 13px; color: var(--muted); padding: 10px 12px; border-radius: 10px; border: 1px dashed var(--line); margin: 0; }
+
+#fallback { position: fixed; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; }
+
+@media (max-width: 820px) {
+  #panel {
+    top: auto; left: 0; right: 0; bottom: 0; width: auto; height: 60%; border-radius: 20px 20px 0 0;
+    padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+    transform: translateY(calc(100% + 20px));
+  }
+  .p-scroll { padding-inline: max(16px, 4vw); }
+}
+@media (max-width: 640px) {
+  .brand h1 { font-size: 18px; }
+  .brand p { display: none; }
+  .search { width: 100%; order: 3; }
+  .tools .label { display: none; }
+  .btn { padding: 0 12px; }
+  #legendToggle { display: inline-flex; }
+  .legend { position: absolute; bottom: 64px; left: max(16px, env(safe-area-inset-left, 0px)); }
+  .legend[data-collapsed="true"] { display: none; }
+  .hint { display: none; }
+  .spotlight { max-width: none; flex: 1; }
+  .p-head { grid-template-columns: 88px 1fr; }
+  .p-tile .sym { font-size: 32px; }
+  .p-head h2 { font-size: 23px; }
+  .ident { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #panel { transition: none; }
+  .hint { transition: none; }
+}
+</style>
+
+<canvas id="scene" aria-label="3D periodic table. Use the search box or the element list to explore." tabindex="0"></canvas>
+
+<div id="hud">
+  <div class="top">
+    <div class="brand">
+      <h1>Element <span>Galaxy</span></h1>
+      <p>118 elements in 10 families · tap any tile to explore it</p>
+    </div>
+    <div class="search" role="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="Find an element: gold, Na, 26…" aria-label="Search elements by name, symbol or number" aria-controls="results">
+      <ul id="results" class="results glass" role="listbox" hidden></ul>
+    </div>
+    <div class="tools">
+      <button class="btn primary" id="surprise" type="button" title="Fly to a random element">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg><span class="label">Surprise me</span>
+      </button>
+      <div class="seg" role="group" aria-label="Layout">
+        <button type="button" id="layGalaxy" aria-pressed="true">Galaxy</button>
+        <button type="button" id="layTable" aria-pressed="false">Table</button>
+      </div>
+      <button class="btn" id="home" type="button" title="Zoom back out to see everything" aria-label="Reset view">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg><span class="label">Reset view</span>
+      </button>
+    </div>
+  </div>
+  <div></div>
+  <div class="bottom">
+    <button class="btn" id="legendToggle" type="button" aria-expanded="false" aria-controls="legend">Families</button>
+    <div class="legend glass" id="legend" data-collapsed="true">
+      <div class="legend-head"><h2>Element families</h2><button type="button" id="clearHl" hidden>Show all</button></div>
+      <ul id="legendList"></ul>
+    </div>
+    <div class="spotlight glass" id="spotlight" hidden></div>
+    <div class="hint glass" id="hint"><b>Drag</b> to spin · <b>scroll or pinch</b> to zoom · <b>right-drag or two fingers</b> to slide · <b>tap a tile</b> to open it</div>
+  </div>
+</div>
+
+<aside id="panel" aria-label="Element details" aria-hidden="true">
+  <div class="p-bar">
+    <span class="crumb" id="crumb"></span>
+    <button class="icon-btn" id="pPrev" type="button" aria-label="Previous element"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <button class="icon-btn" id="pNext" type="button" aria-label="Next element"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button>
+    <button class="icon-btn" id="pClose" type="button" aria-label="Close details"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div class="p-scroll" id="pBody"></div>
+</aside>
+
+<div id="fallback" hidden>
+  <div>
+    <h2 style="font-family: var(--display)">3D needs WebGL</h2>
+    <p style="color: var(--muted)">This browser couldn't start 3D graphics. Try a recent version of Chrome, Edge, Safari or Firefox.</p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+/* =====================================================================
+   DATA — review and correct here.
+   ===================================================================== */
+
+/* Family colour scheme. `kind` drives the metal / nonmetal / metalloid label. */
+const FAMILIES = {
+  "alkali":          { label: "Alkali metals",          color: "#ff6b6b", kind: "Metal",
+    blurb: "Super-soft, shiny metals with just 1 electron in their outer shell. They give it away so eagerly that they react with water, sometimes with a bang, so they're stored in oil." },
+  "alkaline-earth":  { label: "Alkaline earth metals",  color: "#ffa94d", kind: "Metal",
+    blurb: "Metals with 2 outer electrons. Reactive, but calmer than the alkali metals. You'll find them in rocks, bones and fireworks." },
+  "transition":      { label: "Transition metals",      color: "#ffd43b", kind: "Metal",
+    blurb: "The classic metals: strong, shiny and great at carrying heat and electricity. Many make colourful compounds." },
+  "post-transition": { label: "Post-transition metals", color: "#9fb4d4", kind: "Metal",
+    blurb: "Softer metals with lower melting points that sit to the right of the transition metals. Think tin cans and lead weights." },
+  "metalloid":       { label: "Metalloids",             color: "#38d9a9", kind: "Metalloid",
+    blurb: "The in-betweeners: they look a bit like metals but behave partly like nonmetals. Several are semiconductors, which is what makes computer chips possible." },
+  "nonmetal":        { label: "Nonmetals",              color: "#4dabf7", kind: "Nonmetal",
+    blurb: "Not shiny, poor at carrying electricity, and many are gases. They're the main building blocks of living things." },
+  "halogen":         { label: "Halogens",               color: "#8c9bff", kind: "Nonmetal",
+    blurb: "Very reactive nonmetals with 7 outer electrons, always hunting for one more. 'Halogen' means 'salt-maker': they react with metals to make salts." },
+  "noble-gas":       { label: "Noble gases",            color: "#da77f2", kind: "Nonmetal",
+    blurb: "Their outer shell is already full, so they hardly ever react with anything. They glow bright colours when electricity passes through them." },
+  "lanthanide":      { label: "Lanthanides",            color: "#f783ac", kind: "Metal",
+    blurb: "Also called rare-earth metals (most aren't actually rare). They make super-strong magnets, the colours in screens, and lasers." },
+  "actinide":        { label: "Actinides",              color: "#b6f45a", kind: "Metal",
+    blurb: "Heavy, radioactive metals. Only thorium and uranium are found in large amounts in nature; the rest are made in nuclear reactors and labs." },
+};
+
+/* All 118 elements. mass in [brackets] = mass number of the longest-lived isotope (no stable form).
+   shells = electrons in each shell, innermost first (K, L, M, N, O, P, Q).
+   group = null for the lanthanide/actinide series (the f-block rows have no group number).
+   state = at room temperature; "solid*" = predicted, "unknown" = too few atoms ever made to tell.
+   Elements 104+ are superheavy: their shells and family are predictions based on their place in the table.
+   Generated and checked by tools/gen_elements.py (shell totals = atomic number). */
+const ELEMENTS = [
+  {z:1, sym:"H", name:"Hydrogen", mass:"1.008", family:"nonmetal", period:1, group:1, shells:[1], state:"gas"},
+  {z:2, sym:"He", name:"Helium", mass:"4.0026", family:"noble-gas", period:1, group:18, shells:[2], state:"gas"},
+  {z:3, sym:"Li", name:"Lithium", mass:"6.94", family:"alkali", period:2, group:1, shells:[2,1], state:"solid"},
+  {z:4, sym:"Be", name:"Beryllium", mass:"9.0122", family:"alkaline-earth", period:2, group:2, shells:[2,2], state:"solid"},
+  {z:5, sym:"B", name:"Boron", mass:"10.81", family:"metalloid", period:2, group:13, shells:[2,3], state:"solid"},
+  {z:6, sym:"C", name:"Carbon", mass:"12.011", family:"nonmetal", period:2, group:14, shells:[2,4], state:"solid"},
+  {z:7, sym:"N", name:"Nitrogen", mass:"14.007", family:"nonmetal", period:2, group:15, shells:[2,5], state:"gas"},
+  {z:8, sym:"O", name:"Oxygen", mass:"15.999", family:"nonmetal", period:2, group:16, shells:[2,6], state:"gas"},
+  {z:9, sym:"F", name:"Fluorine", mass:"18.998", family:"halogen", period:2, group:17, shells:[2,7], state:"gas"},
+  {z:10, sym:"Ne", name:"Neon", mass:"20.180", family:"noble-gas", period:2, group:18, shells:[2,8], state:"gas"},
+  {z:11, sym:"Na", name:"Sodium", mass:"22.990", family:"alkali", period:3, group:1, shells:[2,8,1], state:"solid"},
+  {z:12, sym:"Mg", name:"Magnesium", mass:"24.305", family:"alkaline-earth", period:3, group:2, shells:[2,8,2], state:"solid"},
+  {z:13, sym:"Al", name:"Aluminium", mass:"26.982", family:"post-transition", period:3, group:13, shells:[2,8,3], state:"solid"},
+  {z:14, sym:"Si", name:"Silicon", mass:"28.085", family:"metalloid", period:3, group:14, shells:[2,8,4], state:"solid"},
+  {z:15, sym:"P", name:"Phosphorus", mass:"30.974", family:"nonmetal", period:3, group:15, shells:[2,8,5], state:"solid"},
+  {z:16, sym:"S", name:"Sulfur", mass:"32.06", family:"nonmetal", period:3, group:16, shells:[2,8,6], state:"solid"},
+  {z:17, sym:"Cl", name:"Chlorine", mass:"35.45", family:"halogen", period:3, group:17, shells:[2,8,7], state:"gas"},
+  {z:18, sym:"Ar", name:"Argon", mass:"39.948", family:"noble-gas", period:3, group:18, shells:[2,8,8], state:"gas"},
+  {z:19, sym:"K", name:"Potassium", mass:"39.098", family:"alkali", period:4, group:1, shells:[2,8,8,1], state:"solid"},
+  {z:20, sym:"Ca", name:"Calcium", mass:"40.078", family:"alkaline-earth", period:4, group:2, shells:[2,8,8,2], state:"solid"},
+  {z:21, sym:"Sc", name:"Scandium", mass:"44.956", family:"transition", period:4, group:3, shells:[2,8,9,2], state:"solid"},
+  {z:22, sym:"Ti", name:"Titanium", mass:"47.867", family:"transition", period:4, group:4, shells:[2,8,10,2], state:"solid"},
+  {z:23, sym:"V", name:"Vanadium", mass:"50.942", family:"transition", period:4, group:5, shells:[2,8,11,2], state:"solid"},
+  {z:24, sym:"Cr", name:"Chromium", mass:"51.996", family:"transition", period:4, group:6, shells:[2,8,13,1], state:"solid"},
+  {z:25, sym:"Mn", name:"Manganese", mass:"54.938", family:"transition", period:4, group:7, shells:[2,8,13,2], state:"solid"},
+  {z:26, sym:"Fe", name:"Iron", mass:"55.845", family:"transition", period:4, group:8, shells:[2,8,14,2], state:"solid"},
+  {z:27, sym:"Co", name:"Cobalt", mass:"58.933", family:"transition", period:4, group:9, shells:[2,8,15,2], state:"solid"},
+  {z:28, sym:"Ni", name:"Nickel", mass:"58.693", family:"transition", period:4, group:10, shells:[2,8,16,2], state:"solid"},
+  {z:29, sym:"Cu", name:"Copper", mass:"63.546", family:"transition", period:4, group:11, shells:[2,8,18,1], state:"solid"},
+  {z:30, sym:"Zn", name:"Zinc", mass:"65.38", family:"transition", period:4, group:12, shells:[2,8,18,2], state:"solid"},
+  {z:31, sym:"Ga", name:"Gallium", mass:"69.723", family:"post-transition", period:4, group:13, shells:[2,8,18,3], state:"solid"},
+  {z:32, sym:"Ge", name:"Germanium", mass:"72.630", family:"metalloid", period:4, group:14, shells:[2,8,18,4], state:"solid"},
+  {z:33, sym:"As", name:"Arsenic", mass:"74.922", family:"metalloid", period:4, group:15, shells:[2,8,18,5], state:"solid"},
+  {z:34, sym:"Se", name:"Selenium", mass:"78.971", family:"nonmetal", period:4, group:16, shells:[2,8,18,6], state:"solid"},
+  {z:35, sym:"Br", name:"Bromine", mass:"79.904", family:"halogen", period:4, group:17, shells:[2,8,18,7], state:"liquid"},
+  {z:36, sym:"Kr", name:"Krypton", mass:"83.798", family:"noble-gas", period:4, group:18, shells:[2,8,18,8], state:"gas"},
+  {z:37, sym:"Rb", name:"Rubidium", mass:"85.468", family:"alkali", period:5, group:1, shells:[2,8,18,8,1], state:"solid"},
+  {z:38, sym:"Sr", name:"Strontium", mass:"87.62", family:"alkaline-earth", period:5, group:2, shells:[2,8,18,8,2], state:"solid"},
+  {z:39, sym:"Y", name:"Yttrium", mass:"88.906", family:"transition", period:5, group:3, shells:[2,8,18,9,2], state:"solid"},
+  {z:40, sym:"Zr", name:"Zirconium", mass:"91.224", family:"transition", period:5, group:4, shells:[2,8,18,10,2], state:"solid"},
+  {z:41, sym:"Nb", name:"Niobium", mass:"92.906", family:"transition", period:5, group:5, shells:[2,8,18,12,1], state:"solid"},
+  {z:42, sym:"Mo", name:"Molybdenum", mass:"95.95", family:"transition", period:5, group:6, shells:[2,8,18,13,1], state:"solid"},
+  {z:43, sym:"Tc", name:"Technetium", mass:"[98]", family:"transition", period:5, group:7, shells:[2,8,18,13,2], state:"solid"},
+  {z:44, sym:"Ru", name:"Ruthenium", mass:"101.07", family:"transition", period:5, group:8, shells:[2,8,18,15,1], state:"solid"},
+  {z:45, sym:"Rh", name:"Rhodium", mass:"102.91", family:"transition", period:5, group:9, shells:[2,8,18,16,1], state:"solid"},
+  {z:46, sym:"Pd", name:"Palladium", mass:"106.42", family:"transition", period:5, group:10, shells:[2,8,18,18], state:"solid"},
+  {z:47, sym:"Ag", name:"Silver", mass:"107.87", family:"transition", period:5, group:11, shells:[2,8,18,18,1], state:"solid"},
+  {z:48, sym:"Cd", name:"Cadmium", mass:"112.41", family:"transition", period:5, group:12, shells:[2,8,18,18,2], state:"solid"},
+  {z:49, sym:"In", name:"Indium", mass:"114.82", family:"post-transition", period:5, group:13, shells:[2,8,18,18,3], state:"solid"},
+  {z:50, sym:"Sn", name:"Tin", mass:"118.71", family:"post-transition", period:5, group:14, shells:[2,8,18,18,4], state:"solid"},
+  {z:51, sym:"Sb", name:"Antimony", mass:"121.76", family:"metalloid", period:5, group:15, shells:[2,8,18,18,5], state:"solid"},
+  {z:52, sym:"Te", name:"Tellurium", mass:"127.60", family:"metalloid", period:5, group:16, shells:[2,8,18,18,6], state:"solid"},
+  {z:53, sym:"I", name:"Iodine", mass:"126.90", family:"halogen", period:5, group:17, shells:[2,8,18,18,7], state:"solid"},
+  {z:54, sym:"Xe", name:"Xenon", mass:"131.29", family:"noble-gas", period:5, group:18, shells:[2,8,18,18,8], state:"gas"},
+  {z:55, sym:"Cs", name:"Caesium", mass:"132.91", family:"alkali", period:6, group:1, shells:[2,8,18,18,8,1], state:"solid"},
+  {z:56, sym:"Ba", name:"Barium", mass:"137.33", family:"alkaline-earth", period:6, group:2, shells:[2,8,18,18,8,2], state:"solid"},
+  {z:57, sym:"La", name:"Lanthanum", mass:"138.91", family:"lanthanide", period:6, group:null, shells:[2,8,18,18,9,2], state:"solid"},
+  {z:58, sym:"Ce", name:"Cerium", mass:"140.12", family:"lanthanide", period:6, group:null, shells:[2,8,18,19,9,2], state:"solid"},
+  {z:59, sym:"Pr", name:"Praseodymium", mass:"140.91", family:"lanthanide", period:6, group:null, shells:[2,8,18,21,8,2], state:"solid"},
+  {z:60, sym:"Nd", name:"Neodymium", mass:"144.24", family:"lanthanide", period:6, group:null, shells:[2,8,18,22,8,2], state:"solid"},
+  {z:61, sym:"Pm", name:"Promethium", mass:"[145]", family:"lanthanide", period:6, group:null, shells:[2,8,18,23,8,2], state:"solid"},
+  {z:62, sym:"Sm", name:"Samarium", mass:"150.36", family:"lanthanide", period:6, group:null, shells:[2,8,18,24,8,2], state:"solid"},
+  {z:63, sym:"Eu", name:"Europium", mass:"151.96", family:"lanthanide", period:6, group:null, shells:[2,8,18,25,8,2], state:"solid"},
+  {z:64, sym:"Gd", name:"Gadolinium", mass:"157.25", family:"lanthanide", period:6, group:null, shells:[2,8,18,25,9,2], state:"solid"},
+  {z:65, sym:"Tb", name:"Terbium", mass:"158.93", family:"lanthanide", period:6, group:null, shells:[2,8,18,27,8,2], state:"solid"},
+  {z:66, sym:"Dy", name:"Dysprosium", mass:"162.50", family:"lanthanide", period:6, group:null, shells:[2,8,18,28,8,2], state:"solid"},
+  {z:67, sym:"Ho", name:"Holmium", mass:"164.93", family:"lanthanide", period:6, group:null, shells:[2,8,18,29,8,2], state:"solid"},
+  {z:68, sym:"Er", name:"Erbium", mass:"167.26", family:"lanthanide", period:6, group:null, shells:[2,8,18,30,8,2], state:"solid"},
+  {z:69, sym:"Tm", name:"Thulium", mass:"168.93", family:"lanthanide", period:6, group:null, shells:[2,8,18,31,8,2], state:"solid"},
+  {z:70, sym:"Yb", name:"Ytterbium", mass:"173.05", family:"lanthanide", period:6, group:null, shells:[2,8,18,32,8,2], state:"solid"},
+  {z:71, sym:"Lu", name:"Lutetium", mass:"174.97", family:"lanthanide", period:6, group:null, shells:[2,8,18,32,9,2], state:"solid"},
+  {z:72, sym:"Hf", name:"Hafnium", mass:"178.49", family:"transition", period:6, group:4, shells:[2,8,18,32,10,2], state:"solid"},
+  {z:73, sym:"Ta", name:"Tantalum", mass:"180.95", family:"transition", period:6, group:5, shells:[2,8,18,32,11,2], state:"solid"},
+  {z:74, sym:"W", name:"Tungsten", mass:"183.84", family:"transition", period:6, group:6, shells:[2,8,18,32,12,2], state:"solid"},
+  {z:75, sym:"Re", name:"Rhenium", mass:"186.21", family:"transition", period:6, group:7, shells:[2,8,18,32,13,2], state:"solid"},
+  {z:76, sym:"Os", name:"Osmium", mass:"190.23", family:"transition", period:6, group:8, shells:[2,8,18,32,14,2], state:"solid"},
+  {z:77, sym:"Ir", name:"Iridium", mass:"192.22", family:"transition", period:6, group:9, shells:[2,8,18,32,15,2], state:"solid"},
+  {z:78, sym:"Pt", name:"Platinum", mass:"195.08", family:"transition", period:6, group:10, shells:[2,8,18,32,17,1], state:"solid"},
+  {z:79, sym:"Au", name:"Gold", mass:"196.97", family:"transition", period:6, group:11, shells:[2,8,18,32,18,1], state:"solid"},
+  {z:80, sym:"Hg", name:"Mercury", mass:"200.59", family:"transition", period:6, group:12, shells:[2,8,18,32,18,2], state:"liquid"},
+  {z:81, sym:"Tl", name:"Thallium", mass:"204.38", family:"post-transition", period:6, group:13, shells:[2,8,18,32,18,3], state:"solid"},
+  {z:82, sym:"Pb", name:"Lead", mass:"207.2", family:"post-transition", period:6, group:14, shells:[2,8,18,32,18,4], state:"solid"},
+  {z:83, sym:"Bi", name:"Bismuth", mass:"208.98", family:"post-transition", period:6, group:15, shells:[2,8,18,32,18,5], state:"solid"},
+  {z:84, sym:"Po", name:"Polonium", mass:"[209]", family:"post-transition", period:6, group:16, shells:[2,8,18,32,18,6], state:"solid"},
+  {z:85, sym:"At", name:"Astatine", mass:"[210]", family:"halogen", period:6, group:17, shells:[2,8,18,32,18,7], state:"solid"},
+  {z:86, sym:"Rn", name:"Radon", mass:"[222]", family:"noble-gas", period:6, group:18, shells:[2,8,18,32,18,8], state:"gas"},
+  {z:87, sym:"Fr", name:"Francium", mass:"[223]", family:"alkali", period:7, group:1, shells:[2,8,18,32,18,8,1], state:"solid"},
+  {z:88, sym:"Ra", name:"Radium", mass:"[226]", family:"alkaline-earth", period:7, group:2, shells:[2,8,18,32,18,8,2], state:"solid"},
+  {z:89, sym:"Ac", name:"Actinium", mass:"[227]", family:"actinide", period:7, group:null, shells:[2,8,18,32,18,9,2], state:"solid"},
+  {z:90, sym:"Th", name:"Thorium", mass:"232.04", family:"actinide", period:7, group:null, shells:[2,8,18,32,18,10,2], state:"solid"},
+  {z:91, sym:"Pa", name:"Protactinium", mass:"231.04", family:"actinide", period:7, group:null, shells:[2,8,18,32,20,9,2], state:"solid"},
+  {z:92, sym:"U", name:"Uranium", mass:"238.03", family:"actinide", period:7, group:null, shells:[2,8,18,32,21,9,2], state:"solid"},
+  {z:93, sym:"Np", name:"Neptunium", mass:"[237]", family:"actinide", period:7, group:null, shells:[2,8,18,32,22,9,2], state:"solid"},
+  {z:94, sym:"Pu", name:"Plutonium", mass:"[244]", family:"actinide", period:7, group:null, shells:[2,8,18,32,24,8,2], state:"solid"},
+  {z:95, sym:"Am", name:"Americium", mass:"[243]", family:"actinide", period:7, group:null, shells:[2,8,18,32,25,8,2], state:"solid"},
+  {z:96, sym:"Cm", name:"Curium", mass:"[247]", family:"actinide", period:7, group:null, shells:[2,8,18,32,25,9,2], state:"solid"},
+  {z:97, sym:"Bk", name:"Berkelium", mass:"[247]", family:"actinide", period:7, group:null, shells:[2,8,18,32,27,8,2], state:"solid"},
+  {z:98, sym:"Cf", name:"Californium", mass:"[251]", family:"actinide", period:7, group:null, shells:[2,8,18,32,28,8,2], state:"solid"},
+  {z:99, sym:"Es", name:"Einsteinium", mass:"[252]", family:"actinide", period:7, group:null, shells:[2,8,18,32,29,8,2], state:"solid"},
+  {z:100, sym:"Fm", name:"Fermium", mass:"[257]", family:"actinide", period:7, group:null, shells:[2,8,18,32,30,8,2], state:"solid*"},
+  {z:101, sym:"Md", name:"Mendelevium", mass:"[258]", family:"actinide", period:7, group:null, shells:[2,8,18,32,31,8,2], state:"solid*"},
+  {z:102, sym:"No", name:"Nobelium", mass:"[259]", family:"actinide", period:7, group:null, shells:[2,8,18,32,32,8,2], state:"solid*"},
+  {z:103, sym:"Lr", name:"Lawrencium", mass:"[266]", family:"actinide", period:7, group:null, shells:[2,8,18,32,32,8,3], state:"solid*"},
+  {z:104, sym:"Rf", name:"Rutherfordium", mass:"[267]", family:"transition", period:7, group:4, shells:[2,8,18,32,32,10,2], state:"unknown"},
+  {z:105, sym:"Db", name:"Dubnium", mass:"[268]", family:"transition", period:7, group:5, shells:[2,8,18,32,32,11,2], state:"unknown"},
+  {z:106, sym:"Sg", name:"Seaborgium", mass:"[269]", family:"transition", period:7, group:6, shells:[2,8,18,32,32,12,2], state:"unknown"},
+  {z:107, sym:"Bh", name:"Bohrium", mass:"[270]", family:"transition", period:7, group:7, shells:[2,8,18,32,32,13,2], state:"unknown"},
+  {z:108, sym:"Hs", name:"Hassium", mass:"[269]", family:"transition", period:7, group:8, shells:[2,8,18,32,32,14,2], state:"unknown"},
+  {z:109, sym:"Mt", name:"Meitnerium", mass:"[278]", family:"transition", period:7, group:9, shells:[2,8,18,32,32,15,2], state:"unknown"},
+  {z:110, sym:"Ds", name:"Darmstadtium", mass:"[281]", family:"transition", period:7, group:10, shells:[2,8,18,32,32,16,2], state:"unknown"},
+  {z:111, sym:"Rg", name:"Roentgenium", mass:"[282]", family:"transition", period:7, group:11, shells:[2,8,18,32,32,17,2], state:"unknown"},
+  {z:112, sym:"Cn", name:"Copernicium", mass:"[285]", family:"transition", period:7, group:12, shells:[2,8,18,32,32,18,2], state:"unknown"},
+  {z:113, sym:"Nh", name:"Nihonium", mass:"[286]", family:"post-transition", period:7, group:13, shells:[2,8,18,32,32,18,3], state:"unknown"},
+  {z:114, sym:"Fl", name:"Flerovium", mass:"[289]", family:"post-transition", period:7, group:14, shells:[2,8,18,32,32,18,4], state:"unknown"},
+  {z:115, sym:"Mc", name:"Moscovium", mass:"[290]", family:"post-transition", period:7, group:15, shells:[2,8,18,32,32,18,5], state:"unknown"},
+  {z:116, sym:"Lv", name:"Livermorium", mass:"[293]", family:"post-transition", period:7, group:16, shells:[2,8,18,32,32,18,6], state:"unknown"},
+  {z:117, sym:"Ts", name:"Tennessine", mass:"[294]", family:"halogen", period:7, group:17, shells:[2,8,18,32,32,18,7], state:"unknown"},
+  {z:118, sym:"Og", name:"Oganesson", mass:"[294]", family:"noble-gas", period:7, group:18, shells:[2,8,18,32,32,18,8], state:"unknown"},
+];
+
+/* Learning content.  a = about (plain-language intro), f = facts, u = everyday uses,
+   c = combinations: { n: name, f: formula, p: [elements involved], e: balanced equation (optional), note }.
+   Digits in formulas are shown as subscripts automatically. */
+const DETAILS = {
+  H: { a: "The lightest element and the most common one in the universe. Stars like our Sun are mostly hydrogen.",
+    f: ["About 3 out of every 4 grams of ordinary matter in the universe is hydrogen.", "The Sun fuses about 600 million tonnes of hydrogen into helium every second.", "It's so light that it was once used to float giant airships."],
+    u: ["Rocket fuel: liquid hydrogen powered the Space Shuttle's main engines", "Making ammonia for farm fertilisers", "Hydrogen fuel-cell buses and cars"],
+    c: [{ n: "Water", f: "H2O", p: ["H", "O"], e: "2H2 + O2 → 2H2O" },
+        { n: "Methane (natural gas)", f: "CH4", p: ["C", "H"], note: "the gas burned in many cookers" },
+        { n: "Ammonia", f: "NH3", p: ["N", "H"], e: "N2 + 3H2 → 2NH3", note: "the starting point for fertilisers" },
+        { n: "Hydrochloric acid", f: "HCl", p: ["H", "Cl"], e: "H2 + Cl2 → 2HCl", note: "your stomach makes this to digest food" }] },
+  He: { a: "A super-light gas that never burns and almost never reacts with anything.",
+    f: ["It was discovered in the Sun's light before it was found on Earth. Its name comes from Helios, the Greek god of the Sun.", "Liquid helium is the coldest liquid there is: it boils at −269 °C.", "It makes voices squeaky because sound travels faster through it."],
+    u: ["Party balloons and weather balloons", "Cooling the giant magnets in MRI scanners", "Breathing-gas mixes for deep-sea divers"], c: [] },
+  Li: { a: "The lightest metal of all. It's soft enough to cut with a butter knife, and it floats on water while fizzing.",
+    f: ["It's so light it even floats on oil.", "It burns with a bright crimson-red flame."],
+    u: ["Rechargeable batteries in phones, laptops and electric cars", "Some medicines", "Red fireworks"],
+    c: [{ n: "Lithium hydroxide + hydrogen gas", f: "LiOH", p: ["Li", "O", "H"], e: "2Li + 2H2O → 2LiOH + H2", note: "what happens when lithium meets water" },
+        { n: "Lithium chloride", f: "LiCl", p: ["Li", "Cl"] },
+        { n: "Lithium carbonate", f: "Li2CO3", p: ["Li", "C", "O"], note: "used to make battery materials and medicine" }] },
+  Be: { a: "A light, very stiff metal. It's rare, and its dust is toxic, so scientists handle it carefully.",
+    f: ["The James Webb Space Telescope's 18 mirror segments are made of beryllium coated in a thin layer of gold.", "Emeralds and aquamarines are forms of beryl, a mineral that contains beryllium."],
+    u: ["Space telescope mirrors", "Windows in X-ray machines (X-rays pass right through it)", "Non-sparking tools and springs (mixed with copper)"],
+    c: [{ n: "Beryllium oxide", f: "BeO", p: ["Be", "O"] },
+        { n: "Emerald (beryl)", f: "Be3Al2Si6O18", p: ["Be", "Al", "Si", "O"], note: "a trace of chromium makes it green" }] },
+  B: { a: "A tough, heat-resistant metalloid. You may have played with it already: it's what makes slime stretchy.",
+    f: ["Borax, a boron compound, links glue molecules together into slime.", "Boron carbide is one of the hardest materials known and is used in body armour."],
+    u: ["Slime (borax)", "Heat-proof glass for ovenware and labs", "Laundry detergents", "Plants need a tiny amount to grow"],
+    c: [{ n: "Borax", f: "Na2B4O7·10H2O", p: ["Na", "B", "O", "H"] },
+        { n: "Boric acid", f: "H3BO3", p: ["H", "B", "O"], note: "a mild antiseptic" },
+        { n: "Boron carbide", f: "B4C", p: ["B", "C"], note: "super-hard armour material" }] },
+  C: { a: "The element of life. Every living thing is built around carbon atoms, which love to link into long chains and rings.",
+    f: ["Diamond and pencil graphite are both pure carbon. Only the way the atoms are arranged is different.", "Carbon forms millions of different compounds, more than almost any other element."],
+    u: ["Pencil 'lead', which is really graphite", "Diamonds for jewellery and cutting tools", "Steel (iron with a little carbon)", "Fuels like coal, petrol and natural gas"],
+    c: [{ n: "Carbon dioxide", f: "CO2", p: ["C", "O"], e: "C + O2 → CO2", note: "what you breathe out, and the bubbles in fizzy drinks" },
+        { n: "Methane", f: "CH4", p: ["C", "H"] },
+        { n: "Glucose (sugar)", f: "C6H12O6", p: ["C", "H", "O"], note: "made by plants from CO2 and water using sunlight" },
+        { n: "Calcium carbonate", f: "CaCO3", p: ["Ca", "C", "O"], note: "chalk, limestone and seashells" }] },
+  N: { a: "An invisible, unreactive gas that makes up most of the air you breathe.",
+    f: ["78% of the air is nitrogen.", "Liquid nitrogen is so cold (−196 °C) that it can freeze a flower solid in seconds."],
+    u: ["Fertilisers that help crops grow", "Filling crisp and chip bags so the food stays fresh", "Liquid nitrogen for freezing food and making instant ice cream"],
+    c: [{ n: "Ammonia", f: "NH3", p: ["N", "H"], e: "N2 + 3H2 → 2NH3" },
+        { n: "Nitrous oxide (laughing gas)", f: "N2O", p: ["N", "O"], note: "used by dentists to help patients relax" },
+        { n: "Nitric acid", f: "HNO3", p: ["H", "N", "O"], note: "used to make fertilisers" },
+        { n: "Potassium nitrate (saltpetre)", f: "KNO3", p: ["K", "N", "O"] }] },
+  O: { a: "The gas that keeps you alive. Every breath pulls oxygen into your lungs, and your cells use it to release energy from food.",
+    f: ["21% of the air is oxygen.", "It's the most common element in Earth's crust: about 46% of rock by weight.", "Liquid oxygen is pale blue and is pulled towards magnets."],
+    u: ["Breathing, and oxygen tanks in hospitals", "Fire: nothing burns without oxygen", "Rocket engines (liquid oxygen)", "Welding torches"],
+    c: [{ n: "Water", f: "H2O", p: ["H", "O"], e: "2H2 + O2 → 2H2O" },
+        { n: "Carbon dioxide", f: "CO2", p: ["C", "O"], e: "C + O2 → CO2" },
+        { n: "Rust (iron oxide)", f: "Fe2O3", p: ["Fe", "O"], e: "4Fe + 3O2 → 2Fe2O3", note: "iron needs water too before it rusts" },
+        { n: "Sand and quartz", f: "SiO2", p: ["Si", "O"] },
+        { n: "Ozone", f: "O3", p: ["O"], note: "three oxygen atoms together; a layer high in the sky blocks harmful UV light" }] },
+  F: { a: "The most reactive element of all. Pure fluorine gas attacks almost anything, but its tamer compounds protect your teeth.",
+    f: ["It's so reactive that it can make even the noble gas xenon react.", "Fluoride in toothpaste makes tooth enamel harder and helps stop cavities."],
+    u: ["Fluoride toothpaste", "Non-stick frying pans (PTFE, often called Teflon)", "Coolants in fridges and air conditioners"],
+    c: [{ n: "Sodium fluoride", f: "NaF", p: ["Na", "F"], note: "the fluoride in many toothpastes" },
+        { n: "Fluorite", f: "CaF2", p: ["Ca", "F"], note: "a mineral that glows under UV light" },
+        { n: "Hydrofluoric acid", f: "HF", p: ["H", "F"], note: "strong enough to etch glass" },
+        { n: "PTFE (non-stick coating)", f: "(C2F4)n", p: ["C", "F"] }] },
+  Ne: { a: "A noble gas famous for the bright red-orange glow of neon signs.",
+    f: ["Only red-orange signs are true neon. Other colours use other gases or coated tubes.", "Its name means 'new' in Greek. It was discovered in 1898."],
+    u: ["Glowing advertising signs", "Some lasers", "Super-cold liquid neon for science experiments"], c: [] },
+  Na: { a: "A soft, silvery metal you can cut with a knife. It reacts so strongly with water that it whizzes around, fizzing, and can burst into flame.",
+    f: ["Its symbol Na comes from its Latin name, natrium.", "The orange-yellow glow of some street lights comes from sodium.", "Your nerves use sodium to send signals."],
+    u: ["Table salt", "Baking soda (sodium bicarbonate)", "Orange street lights", "Soap making (sodium hydroxide)"],
+    c: [{ n: "Table salt", f: "NaCl", p: ["Na", "Cl"], e: "2Na + Cl2 → 2NaCl", note: "a dangerous metal + a poisonous gas = the salt on your food" },
+        { n: "Baking soda", f: "NaHCO3", p: ["Na", "H", "C", "O"], note: "makes cakes rise and volcanoes fizz in science projects" },
+        { n: "Sodium hydroxide + hydrogen gas", f: "NaOH", p: ["Na", "O", "H"], e: "2Na + 2H2O → 2NaOH + H2", note: "what happens when sodium hits water" },
+        { n: "Washing soda", f: "Na2CO3", p: ["Na", "C", "O"] }] },
+  Mg: { a: "A light metal that burns with a dazzling white light.",
+    f: ["Every chlorophyll molecule, the green stuff in leaves, has a magnesium atom at its centre.", "It burns so brightly that it was used in early camera flashes."],
+    u: ["Sparklers and fireworks", "Light alloys for bikes, cars and laptops", "Antacid medicine (milk of magnesia)"],
+    c: [{ n: "Magnesium oxide", f: "MgO", p: ["Mg", "O"], e: "2Mg + O2 → 2MgO", note: "the white ash left after magnesium burns" },
+        { n: "Milk of magnesia", f: "Mg(OH)2", p: ["Mg", "O", "H"], note: "settles an upset stomach" },
+        { n: "Epsom salt", f: "MgSO4", p: ["Mg", "S", "O"], note: "bath salts" }] },
+  Al: { a: "The most common metal in Earth's crust. It's light, doesn't rust away, and is easy to recycle.",
+    f: ["In the 1800s aluminium was rarer than gold. Napoleon III served his most honoured guests on aluminium plates.", "Recycling a drink can uses only about 5% of the energy it takes to make a new one."],
+    u: ["Drink cans and kitchen foil", "Aeroplanes and bikes", "Window frames"],
+    c: [{ n: "Aluminium oxide (rubies and sapphires)", f: "Al2O3", p: ["Al", "O"], note: "a pinch of chromium makes a ruby red" },
+        { n: "Thermite reaction", f: "Al2O3 + Fe", p: ["Al", "Fe", "O"], e: "2Al + Fe2O3 → Al2O3 + 2Fe", note: "so hot it makes liquid iron, used to weld railway tracks" }] },
+  Si: { a: "The heart of every computer. Silicon is a semiconductor, so engineers can control exactly how it carries electricity.",
+    f: ["It's the second most common element in Earth's crust, after oxygen.", "Silicon Valley in California is named after it."],
+    u: ["Computer chips", "Solar panels", "Glass, which is made from sand", "Silicone bakeware and sealants"],
+    c: [{ n: "Sand, quartz and glass", f: "SiO2", p: ["Si", "O"] },
+        { n: "Silicon carbide", f: "SiC", p: ["Si", "C"], note: "the gritty stuff on some sandpaper" }] },
+  P: { a: "A nonmetal your body needs for bones, teeth and DNA. One form of it glows in the dark.",
+    f: ["White phosphorus glows faintly in air. Its name means 'light-bringer' in Greek.", "It was discovered in 1669 by a man who was boiling down urine."],
+    u: ["The striking strip on matchboxes (red phosphorus)", "Fertilisers", "Your bones, teeth and DNA"],
+    c: [{ n: "Calcium phosphate", f: "Ca3(PO4)2", p: ["Ca", "P", "O"], note: "the hard mineral in bones and teeth" },
+        { n: "Phosphoric acid", f: "H3PO4", p: ["H", "P", "O"], note: "gives cola its tang" },
+        { n: "Phosphorus pentoxide", f: "P4O10", p: ["P", "O"], note: "forms when phosphorus burns" }] },
+  S: { a: "A bright yellow nonmetal. Some of its compounds are famously smelly, like rotten eggs.",
+    f: ["The rotten-egg smell is hydrogen sulfide gas.", "Volcanoes give off sulfur. People used to call it brimstone.", "Sulfur compounds give onions and garlic their smell."],
+    u: ["Making sulfuric acid, the most-produced industrial chemical", "Toughening rubber for tyres", "Gunpowder and matches"],
+    c: [{ n: "Hydrogen sulfide", f: "H2S", p: ["H", "S"], note: "the rotten-egg gas" },
+        { n: "Sulfur dioxide", f: "SO2", p: ["S", "O"], e: "S + O2 → SO2", note: "forms when sulfur burns with a blue flame" },
+        { n: "Sulfuric acid", f: "H2SO4", p: ["H", "S", "O"], note: "used in car batteries" },
+        { n: "Pyrite (fool's gold)", f: "FeS2", p: ["Fe", "S"] }] },
+  Cl: { a: "A greenish-yellow, poisonous gas. But join it to sodium and it becomes the salt on your chips.",
+    f: ["Its name comes from the Greek 'chloros', meaning pale green.", "Your stomach makes hydrochloric acid to help digest food."],
+    u: ["Keeping swimming pools and tap water germ-free", "Bleach", "PVC plastic pipes"],
+    c: [{ n: "Table salt", f: "NaCl", p: ["Na", "Cl"], e: "2Na + Cl2 → 2NaCl" },
+        { n: "Hydrochloric acid", f: "HCl", p: ["H", "Cl"], e: "H2 + Cl2 → 2HCl" },
+        { n: "Bleach", f: "NaClO", p: ["Na", "Cl", "O"] },
+        { n: "Calcium chloride", f: "CaCl2", p: ["Ca", "Cl"], note: "spread on icy roads in winter" }] },
+  Ar: { a: "The third most common gas in the air (almost 1%). It's a noble gas, so it simply doesn't react.",
+    f: ["Its name means 'lazy' in Greek.", "There's about 23 times more argon in the air than carbon dioxide."],
+    u: ["Filling light bulbs so the hot filament doesn't burn up", "Shielding gas for welding", "Insulating gas between double-glazed windows"], c: [] },
+  K: { a: "A super-reactive metal that bursts into lilac flames when dropped in water. Your body needs it to keep your heart beating steadily.",
+    f: ["Bananas are famous for containing potassium.", "Its symbol K comes from its Latin name, kalium."],
+    u: ["Fertiliser (potash)", "Low-sodium salt substitutes", "Healthy muscles and nerves"],
+    c: [{ n: "Potassium chloride", f: "KCl", p: ["K", "Cl"], note: "used as a salt substitute" },
+        { n: "Potassium nitrate (saltpetre)", f: "KNO3", p: ["K", "N", "O"], note: "in fertilisers and gunpowder" },
+        { n: "Potassium hydroxide + hydrogen gas", f: "KOH", p: ["K", "O", "H"], e: "2K + 2H2O → 2KOH + H2", note: "the hydrogen catches fire with a lilac flame" }] },
+  Ca: { a: "The metal that makes your bones and teeth strong. It also builds seashells, chalk and marble.",
+    f: ["It's the most common metal in your body.", "The White Cliffs of Dover are chalk, made from the shells of tiny sea creatures."],
+    u: ["Bones and teeth (from milk, cheese and leafy greens)", "Cement and concrete", "Chalk and plaster"],
+    c: [{ n: "Calcium carbonate", f: "CaCO3", p: ["Ca", "C", "O"], note: "chalk, limestone, marble, eggshells and seashells" },
+        { n: "Quicklime", f: "CaO", p: ["Ca", "O"], e: "CaCO3 → CaO + CO2", note: "made by heating limestone" },
+        { n: "The limewater test", f: "CaCO3", p: ["Ca", "O", "H", "C"], e: "Ca(OH)2 + CO2 → CaCO3 + H2O", note: "limewater turns cloudy when you bubble CO2 through it" },
+        { n: "Gypsum", f: "CaSO4·2H2O", p: ["Ca", "S", "O", "H"], note: "plaster for walls and casts" }] },
+  Sc: { f: ["Named after Scandinavia.", "A little scandium makes aluminium extra strong, so it's used in some bike frames and baseball bats."],
+    u: ["Light sports equipment (scandium-aluminium alloys)", "Bright stadium lights"], c: [{ n: "Scandium oxide", f: "Sc2O3", p: ["Sc", "O"] }] },
+  Ti: { a: "A metal about as strong as steel but around 45% lighter, and it doesn't rust.",
+    f: ["Named after the Titans of Greek mythology.", "Bone grows right onto titanium, so it's perfect for implants."],
+    u: ["Aircraft, spacecraft and racing bikes", "Hip and dental implants", "White paint and sunscreen (titanium dioxide)"],
+    c: [{ n: "Titanium dioxide", f: "TiO2", p: ["Ti", "O"], note: "the brilliant white in paint, toothpaste and sunscreen" }] },
+  V: { f: ["Named after Vanadís, a Norse goddess of beauty, because its compounds are so colourful."],
+    u: ["Super-tough steel for tools and springs", "Huge 'flow' batteries that store wind and solar energy"],
+    c: [{ n: "Vanadium pentoxide", f: "V2O5", p: ["V", "O"], note: "helps factories make sulfuric acid" }] },
+  Cr: { a: "A hard, shiny metal. A thin layer of chromium makes things gleam.",
+    f: ["Its name comes from the Greek 'chroma', meaning colour, because its compounds come in so many colours.", "Rubies are red and emeralds green partly because of tiny amounts of chromium."],
+    u: ["Shiny chrome plating on bikes and taps", "Stainless steel", "Green paint pigment"],
+    c: [{ n: "Chromium oxide", f: "Cr2O3", p: ["Cr", "O"], note: "a green pigment" },
+        { n: "Stainless steel (an alloy)", f: "Fe + Cr + Ni", p: ["Fe", "Cr", "Ni"], note: "an alloy is a mixture of metals, not a compound" }] },
+  Mn: { f: ["The black powder inside alkaline batteries is mostly manganese dioxide."],
+    u: ["Making steel strong", "Alkaline batteries"],
+    c: [{ n: "Manganese dioxide", f: "MnO2", p: ["Mn", "O"] },
+        { n: "Potassium permanganate", f: "KMnO4", p: ["K", "Mn", "O"], note: "makes water a deep purple" }] },
+  Fe: { a: "The most important metal in human history. Earth's core is mostly iron, and so is the steel in buildings and cars.",
+    f: ["Your blood is red because of iron in haemoglobin, which carries oxygen around your body.", "Its symbol Fe comes from the Latin 'ferrum'.", "Some meteorites are made almost entirely of iron."],
+    u: ["Steel for buildings, bridges, cars and nails", "Magnets", "Iron in your blood (from beans, spinach and meat)"],
+    c: [{ n: "Rust (iron oxide)", f: "Fe2O3", p: ["Fe", "O"], e: "4Fe + 3O2 → 2Fe2O3", note: "needs water too, which is why wet bikes rust" },
+        { n: "Iron sulfide", f: "FeS", p: ["Fe", "S"], e: "Fe + S → FeS", note: "a classic school experiment" },
+        { n: "Magnetite (lodestone)", f: "Fe3O4", p: ["Fe", "O"], note: "a naturally magnetic rock, used in the first compasses" },
+        { n: "Pyrite (fool's gold)", f: "FeS2", p: ["Fe", "S"] },
+        { n: "Steel (an alloy)", f: "Fe + C", p: ["Fe", "C"], note: "iron with a little carbon is much stronger" }] },
+  Co: { f: ["Named after 'kobold', a mischievous goblin in German miners' stories.", "Vitamin B12 has a cobalt atom at its centre."],
+    u: ["Deep blue glass and pottery", "Rechargeable batteries", "Super-strong magnets"],
+    c: [{ n: "Cobalt blue", f: "CoAl2O4", p: ["Co", "Al", "O"], note: "a blue pigment used by painters for 200 years" }] },
+  Ni: { f: ["The US 5-cent 'nickel' coin is actually 75% copper and only 25% nickel.", "Its name comes from 'Kupfernickel', meaning 'devil's copper', because miners thought its ore was cursed copper."],
+    u: ["Coins", "Stainless steel", "Rechargeable batteries"],
+    c: [{ n: "Cupronickel (an alloy)", f: "Cu + Ni", p: ["Cu", "Ni"], note: "silver-coloured coins" },
+        { n: "Nickel oxide", f: "NiO", p: ["Ni", "O"] }] },
+  Cu: { a: "A reddish-orange metal that's brilliant at carrying electricity. It was one of the first metals people ever used.",
+    f: ["The Statue of Liberty is covered in copper. It turned green over about 30 years as the copper reacted with the air.", "Its symbol Cu comes from the Latin 'cuprum', after the island of Cyprus."],
+    u: ["Electrical wires", "Water pipes", "Coins", "Cooking pans"],
+    c: [{ n: "Copper sulfate", f: "CuSO4", p: ["Cu", "S", "O"], note: "grows beautiful blue crystals" },
+        { n: "Green copper carbonate", f: "Cu2(OH)2CO3", p: ["Cu", "O", "H", "C"], note: "part of the green coating on old copper roofs" },
+        { n: "Brass (an alloy)", f: "Cu + Zn", p: ["Cu", "Zn"], note: "trumpets and door handles" },
+        { n: "Bronze (an alloy)", f: "Cu + Sn", p: ["Cu", "Sn"], note: "so important it named the Bronze Age" }] },
+  Zn: { a: "A bluish-grey metal that protects iron from rusting.",
+    f: ["Coating steel with zinc is called galvanising.", "Your body needs zinc to heal cuts and fight germs."],
+    u: ["Galvanised steel for buckets, fences and car bodies", "Sunscreen and nappy cream (zinc oxide)", "Batteries", "Brass (mixed with copper)"],
+    c: [{ n: "Zinc oxide", f: "ZnO", p: ["Zn", "O"], note: "the white stuff in sunscreen" },
+        { n: "Zinc sulfide", f: "ZnS", p: ["Zn", "S"], note: "glows in some glow-in-the-dark paints" },
+        { n: "Brass (an alloy)", f: "Cu + Zn", p: ["Cu", "Zn"] }] },
+  Ga: { a: "A metal that melts in your hand. It turns liquid at just 29.8 °C.",
+    f: ["A gallium spoon would melt in a cup of hot tea.", "Mendeleev predicted it existed before anyone found it."],
+    u: ["Blue and white LEDs (gallium nitride)", "Phone and satellite electronics", "Small, fast phone chargers"],
+    c: [{ n: "Gallium nitride", f: "GaN", p: ["Ga", "N"], note: "makes blue LEDs, and so white LED lights, possible" },
+        { n: "Gallium arsenide", f: "GaAs", p: ["Ga", "As"], note: "a fast semiconductor for phones" }] },
+  Ge: { a: "A shiny, grey metalloid that was used in the very first transistors.",
+    f: ["Mendeleev predicted it, calling it 'eka-silicon', 15 years before it was found.", "Named after Germany."],
+    u: ["Fibre-optic cables", "Lenses for infrared and night-vision cameras", "Solar panels on satellites"],
+    c: [{ n: "Germanium dioxide", f: "GeO2", p: ["Ge", "O"], note: "added to the glass in fibre-optic cables" }] },
+  As: { a: "A metalloid that's famous in history and mystery stories as a poison.",
+    f: ["Some green wallpaper paints in the 1800s contained arsenic.", "Tiny, controlled amounts are used to fine-tune computer chips."],
+    u: ["Semiconductors (gallium arsenide)", "A medicine for one kind of leukaemia"],
+    c: [{ n: "Gallium arsenide", f: "GaAs", p: ["Ga", "As"] },
+        { n: "Arsenic trioxide", f: "As2O3", p: ["As", "O"], note: "the old 'white arsenic' poison, now also a medicine" }] },
+  Se: { a: "A nonmetal your body needs in tiny amounts. A couple of Brazil nuts give you plenty.",
+    f: ["Named after Selene, the Greek goddess of the Moon.", "It conducts electricity better in light than in the dark."],
+    u: ["Anti-dandruff shampoo", "Colouring glass red", "Solar cells"],
+    c: [{ n: "Selenium sulfide", f: "SeS2", p: ["Se", "S"], note: "in anti-dandruff shampoo" },
+        { n: "Zinc selenide", f: "ZnSe", p: ["Zn", "Se"], note: "lenses for infrared lasers" }] },
+  Br: { a: "One of only two elements that are liquid at room temperature (the other is mercury). It's a dark red-brown liquid with a strong smell.",
+    f: ["Its name comes from the Greek 'bromos', meaning stench.", "Tyrian purple, a dye prized by ancient emperors, contains bromine. It was made from sea snails."],
+    u: ["Flame retardants that slow fires down", "Disinfecting hot tubs and pools", "Old photographic film (silver bromide)"],
+    c: [{ n: "Sodium bromide", f: "NaBr", p: ["Na", "Br"] },
+        { n: "Silver bromide", f: "AgBr", p: ["Ag", "Br"], note: "darkens in light, which is how film photos worked" },
+        { n: "Hydrogen bromide", f: "HBr", p: ["H", "Br"] }] },
+  Kr: { a: "A noble gas. Superman's kryptonite is named after it, but real krypton is harmless and invisible.",
+    f: ["Its name means 'the hidden one' in Greek.", "From 1960 to 1983, the official metre was defined using light from krypton atoms."],
+    u: ["Bright photography flash lamps", "Insulating gas in energy-saving windows", "Some lasers"],
+    c: [{ n: "Krypton difluoride", f: "KrF2", p: ["Kr", "F"], note: "one of the very few krypton compounds; only fluorine can manage it" }] },
+  Rb: { a: "A soft, very reactive alkali metal. It can catch fire by itself in air.",
+    f: ["Named after the Latin 'rubidus', deep red, for the red lines in its light.", "It melts at 39 °C, the temperature of a very hot day."],
+    u: ["Super-accurate atomic clocks", "Purple fireworks"],
+    c: [{ n: "Rubidium chloride", f: "RbCl", p: ["Rb", "Cl"] },
+        { n: "Rubidium hydroxide + hydrogen gas", f: "RbOH", p: ["Rb", "O", "H"], e: "2Rb + 2H2O → 2RbOH + H2", note: "explosive in water" }] },
+  Sr: { a: "An alkaline earth metal best known for painting the night sky red.",
+    f: ["Named after Strontian, a village in Scotland.", "Some glow-in-the-dark toys use strontium aluminate, which glows for hours."],
+    u: ["Red fireworks and emergency flares", "Glow-in-the-dark paints and toys", "Toothpaste for sensitive teeth"],
+    c: [{ n: "Strontium nitrate", f: "Sr(NO3)2", p: ["Sr", "N", "O"], note: "the red in fireworks" },
+        { n: "Strontium aluminate", f: "SrAl2O4", p: ["Sr", "Al", "O"], note: "long-lasting glow-in-the-dark material" }] },
+  Y: { f: ["Named after Ytterby, a village in Sweden whose mine gave its name to four elements: yttrium, terbium, erbium and ytterbium."],
+    u: ["Phosphors in LED lights", "YAG lasers used by doctors and dentists"], c: [{ n: "Yttrium oxide", f: "Y2O3", p: ["Y", "O"] }] },
+  Zr: { f: ["Cubic zirconia, a form of zirconium dioxide, is the sparkly 'fake diamond' in lots of jewellery."],
+    u: ["Cubic zirconia jewellery", "Fuel tubes in nuclear reactors", "Ceramic knives"], c: [{ n: "Zirconium dioxide", f: "ZrO2", p: ["Zr", "O"] }] },
+  Nb: { f: ["Niobium–titanium wire becomes a superconductor when super-cold, which powers MRI magnets.", "Named after Niobe from Greek mythology."],
+    u: ["MRI scanner magnets", "Jet engine alloys", "Colourful jewellery"], c: [] },
+  Mo: { f: ["Its name comes from the Greek for lead, because early chemists mixed up its ore with lead ore."],
+    u: ["Tough steel for tools", "Slippery lubricant (molybdenum disulfide)"], c: [{ n: "Molybdenum disulfide", f: "MoS2", p: ["Mo", "S"], note: "a dry lubricant" }] },
+  Tc: { f: ["The first element ever made artificially, in 1937. Its name means 'artificial'.", "It has no stable form, so it's all slightly radioactive."],
+    u: ["Medical scans: technetium-99m helps doctors see bones and organs"], c: [] },
+  Ru: { f: ["Named after Ruthenia, an old Latin name for Russia."], u: ["Hard-drive coatings", "Electrical contacts", "Hardening platinum jewellery"], c: [] },
+  Rh: { f: ["One of the rarest and most expensive metals on Earth."], u: ["Catalytic converters that clean car exhaust", "Shiny coating on white-gold jewellery"], c: [] },
+  Pd: { f: ["Palladium can soak up about 900 times its own volume of hydrogen gas.", "Named after the asteroid Pallas.", "Its outermost (5th) shell is empty, which is very unusual."],
+    u: ["Catalytic converters", "Electronics", "Dental fillings"], c: [] },
+  Ag: { a: "A shiny precious metal. It's the best conductor of electricity and heat of all the elements.",
+    f: ["Silver tarnishes black when it reacts with sulfur in the air.", "Its symbol Ag comes from the Latin 'argentum'."],
+    u: ["Jewellery, coins and cutlery", "Mirrors", "Electronics and solar panels", "Germ-killing bandages"],
+    c: [{ n: "Silver sulfide (tarnish)", f: "Ag2S", p: ["Ag", "S"], note: "the black film on old silver" },
+        { n: "Silver bromide", f: "AgBr", p: ["Ag", "Br"], note: "used in photographic film" },
+        { n: "Silver chloride", f: "AgCl", p: ["Ag", "Cl"] },
+        { n: "Silver nitrate", f: "AgNO3", p: ["Ag", "N", "O"] }] },
+  Cd: { f: ["Cadmium yellow paint was used by famous painters, including Claude Monet."],
+    u: ["Rechargeable nickel-cadmium batteries", "Yellow and orange pigments", "Solar panels"],
+    c: [{ n: "Cadmium sulfide", f: "CdS", p: ["Cd", "S"], note: "cadmium yellow" }, { n: "Cadmium telluride", f: "CdTe", p: ["Cd", "Te"], note: "in thin solar panels" }] },
+  In: { f: ["Indium is so soft that it squeaks when bent.", "Named after the indigo-blue line in its light."],
+    u: ["Touchscreens (indium tin oxide)", "Solder"],
+    c: [{ n: "Indium oxide", f: "In2O3", p: ["In", "O"], note: "mixed with tin oxide, it makes the clear, conducting layer on touchscreens" }] },
+  Sn: { a: "A soft, silvery metal that doesn't rust. Mixed with copper it makes bronze, which was so important it gave the Bronze Age its name.",
+    f: ["Bend a bar of tin and it makes a crackling sound called the 'tin cry'.", "'Tin cans' are actually steel coated with a thin layer of tin."],
+    u: ["Coating steel food cans", "Solder for electronics", "Bronze statues and bells"],
+    c: [{ n: "Bronze (an alloy)", f: "Cu + Sn", p: ["Cu", "Sn"], note: "an alloy is a mixture of metals, not a compound" },
+        { n: "Tin(II) fluoride", f: "SnF2", p: ["Sn", "F"], note: "in some toothpastes" },
+        { n: "Cassiterite", f: "SnO2", p: ["Sn", "O"], note: "the main ore that tin comes from" }] },
+  Sb: { f: ["Ancient Egyptians used a black antimony mineral, stibnite, as eyeliner. That's where its symbol Sb comes from."],
+    u: ["Flame retardants", "Lead-acid battery plates"],
+    c: [{ n: "Stibnite", f: "Sb2S3", p: ["Sb", "S"] }, { n: "Antimony trioxide", f: "Sb2O3", p: ["Sb", "O"], note: "a flame retardant" }] },
+  Te: { f: ["Named after the Latin 'tellus', meaning Earth.", "It's one of the rarest elements in Earth's crust."],
+    u: ["Thin solar panels", "Thermoelectric coolers"], c: [{ n: "Cadmium telluride", f: "CdTe", p: ["Cd", "Te"] }, { n: "Bismuth telluride", f: "Bi2Te3", p: ["Bi", "Te"], note: "turns heat into electricity" }] },
+  I: { a: "A shiny, dark-purple solid that turns straight into a purple vapour when warmed.",
+    f: ["Its name comes from the Greek for violet.", "Your thyroid gland needs iodine, so it's added to table salt."],
+    u: ["Iodised salt", "Antiseptic for cuts", "Testing food for starch (it turns blue-black)"],
+    c: [{ n: "Potassium iodide", f: "KI", p: ["K", "I"], note: "the iodine in iodised salt" },
+        { n: "Silver iodide", f: "AgI", p: ["Ag", "I"], note: "used to 'seed' clouds to make rain or snow" },
+        { n: "Hydrogen iodide", f: "HI", p: ["H", "I"] }] },
+  Xe: { a: "A heavy noble gas that glows blue. It was the first noble gas ever made to react.",
+    f: ["In 1962, chemist Neil Bartlett made the first noble-gas compound using xenon, surprising chemists everywhere.", "Spacecraft like NASA's Dawn used xenon ion engines."],
+    u: ["Bright car headlights and cinema projectors", "Ion engines for spacecraft", "Anaesthesia in some hospitals"],
+    c: [{ n: "Xenon difluoride", f: "XeF2", p: ["Xe", "F"] }, { n: "Xenon tetrafluoride", f: "XeF4", p: ["Xe", "F"] }] },
+  Cs: { a: "One of the most reactive metals. It melts at 28.5 °C, so on a warm day it would be a liquid.",
+    f: ["The official second is defined by the vibrations of caesium atoms.", "It explodes when dropped in water."],
+    u: ["Atomic clocks, which keep GPS accurate", "Special drilling fluids for oil wells"],
+    c: [{ n: "Caesium chloride", f: "CsCl", p: ["Cs", "Cl"] },
+        { n: "Caesium hydroxide + hydrogen gas", f: "CsOH", p: ["Cs", "O", "H"], e: "2Cs + 2H2O → 2CsOH + H2" }] },
+  Ba: { a: "A soft, reactive metal whose compounds show up in X-rays and in green fireworks.",
+    f: ["Patients drink a 'barium meal' of barium sulfate so their stomach shows up on X-rays.", "Its name comes from the Greek 'barys', meaning heavy."],
+    u: ["Green fireworks", "X-ray imaging of the gut"],
+    c: [{ n: "Barium sulfate", f: "BaSO4", p: ["Ba", "S", "O"], note: "the barium meal" }, { n: "Barium nitrate", f: "Ba(NO3)2", p: ["Ba", "N", "O"], note: "the green in fireworks" }] },
+  La: { f: ["Its name comes from the Greek for 'to lie hidden'."], u: ["Sharp camera and telescope lenses", "Batteries in hybrid cars", "Cinema lights"], c: [] },
+  Ce: { f: ["The sparks from a lighter flint are bits of cerium alloy burning as they scrape off.", "Named after the dwarf planet Ceres."], u: ["Lighter flints", "Polishing glass", "Catalytic converters"],
+    c: [{ n: "Cerium oxide", f: "CeO2", p: ["Ce", "O"], note: "a powder for polishing glass and lenses" }] },
+  Pr: { f: ["Its name means 'green twin': it was separated from neodymium, its 'new twin'."], u: ["Glassblowers' safety goggles", "Strong magnets", "Yellow glass and ceramics"], c: [] },
+  Nd: { a: "The magnet maker. Neodymium magnets are the strongest permanent magnets in the world.",
+    f: ["The tiny speakers in earbuds use neodymium magnets.", "Two neodymium magnets can snap together hard enough to pinch your skin."],
+    u: ["Earbuds and headphones", "Electric car motors and wind turbines", "Hard drives"],
+    c: [{ n: "Neodymium magnet", f: "Nd2Fe14B", p: ["Nd", "Fe", "B"] }] },
+  Pm: { f: ["The only lanthanide with no stable form. Almost all of it is made in nuclear reactors.", "Named after Prometheus, who stole fire from the gods in Greek myth."], u: ["Long-lasting nuclear batteries (in the past)"], c: [] },
+  Sm: { f: ["Samarium–cobalt magnets keep working even when they get very hot."], u: ["Magnets in guitars and motors", "Cancer treatment"], c: [] },
+  Eu: { f: ["Euro banknotes contain europium ink that glows under UV light, to stop forgers.", "Named after Europe."], u: ["Anti-forgery ink", "Red and blue colours in screens and LEDs"], c: [] },
+  Gd: { f: ["Named after Johan Gadolin, the chemist who discovered yttrium."], u: ["MRI contrast agents that make scans clearer", "Nuclear reactor shielding"], c: [] },
+  Tb: { f: ["Another element named after the Swedish village of Ytterby."], u: ["Bright green in screens and lamps", "Sonar equipment"], c: [] },
+  Dy: { f: ["Its name means 'hard to get at' in Greek. It took more than 30 attempts to separate it."], u: ["Magnets in electric car motors", "Lasers"], c: [] },
+  Ho: { f: ["Holmium has the strongest magnetic strength of any element. Named after Stockholm."], u: ["Focusing the fields of the strongest magnets", "Medical lasers"], c: [] },
+  Er: { f: ["Erbium turns glass pink."], u: ["Boosting light signals in fibre-optic internet cables", "Pink glass", "Skin lasers"], c: [] },
+  Tm: { f: ["One of the rarest lanthanides. Named after Thule, a mythical land in the far north."], u: ["Portable X-ray machines", "Lasers"], c: [] },
+  Yb: { f: ["Ytterbium atomic clocks are among the most precise clocks ever built."], u: ["Atomic clocks", "Lasers"], c: [] },
+  Lu: { f: ["Named after Lutetia, the old Roman name for Paris."], u: ["PET medical scanners", "Cancer treatment"], c: [] },
+  Hf: { f: ["Named after Hafnia, the Latin name for Copenhagen.", "It soaks up neutrons, so it's used in nuclear reactor control rods."], u: ["Nuclear control rods", "Computer chips", "Plasma-cutter tips"], c: [] },
+  Ta: { f: ["Tantalum doesn't react with body fluids, so it's safe for implants.", "Named after Tantalus from Greek mythology."], u: ["Tiny capacitors in phones", "Medical implants"], c: [] },
+  W: { a: "Tungsten has the highest melting point of any metal: 3422 °C.",
+    f: ["Its symbol W comes from its other name, wolfram.", "'Tungsten' means 'heavy stone' in Swedish."],
+    u: ["Old-style light bulb filaments", "Drill bits and saw blades (tungsten carbide)", "Heavy darts"],
+    c: [{ n: "Tungsten carbide", f: "WC", p: ["W", "C"], note: "almost as hard as diamond" }] },
+  Re: { f: ["One of the last stable elements to be discovered, in 1925. Named after the River Rhine."], u: ["Jet engine turbine blades", "Catalysts for making petrol"], c: [] },
+  Os: { f: ["Osmium is the densest naturally occurring element, about twice as dense as lead.", "Its name comes from the Greek for 'smell', because one of its compounds smells strongly."], u: ["Fountain pen tips", "Electrical contacts"], c: [] },
+  Ir: { f: ["A thin layer rich in iridium, found all over the world, is evidence of the asteroid that wiped out the dinosaurs.", "Named after Iris, goddess of the rainbow, because its salts are so colourful."], u: ["Long-life spark plugs", "Pen nibs"], c: [] },
+  Pt: { a: "A precious, silvery metal that hardly ever corrodes. It's a superb helper (catalyst) that speeds up chemical reactions.",
+    f: ["Much of the world's platinum ends up in car catalytic converters.", "Its name comes from the Spanish 'platina', meaning 'little silver'."],
+    u: ["Catalytic converters", "Jewellery", "Cancer medicine (cisplatin)", "Lab equipment"],
+    c: [{ n: "Cisplatin", f: "Pt(NH3)2Cl2", p: ["Pt", "N", "H", "Cl"], note: "an important cancer medicine" }] },
+  Au: { a: "The famous yellow precious metal. Gold almost never reacts with anything, so ancient gold treasure still shines today.",
+    f: ["All the gold ever mined would fit in a cube about 22 metres on each side.", "Gold can be hammered so thin that light shines through it."],
+    u: ["Jewellery and medals", "Connectors in phones and computers (it never rusts)", "Astronaut helmet visors, which have a thin gold layer to block sunlight"],
+    c: [{ n: "Gold(III) chloride", f: "AuCl3", p: ["Au", "Cl"], note: "only forms if gold is dissolved in aqua regia, a powerful mix of acids" }] },
+  Hg: { a: "The only metal that's liquid at room temperature: a heavy, silvery liquid once called quicksilver.",
+    f: ["Named after the planet Mercury. Its symbol Hg comes from the Latin 'hydrargyrum', meaning 'water-silver'.", "Its vapour is toxic, which is why mercury thermometers are now rare."],
+    u: ["Old thermometers and barometers", "Fluorescent lamps", "Dental fillings (amalgam)"],
+    c: [{ n: "Cinnabar", f: "HgS", p: ["Hg", "S"], note: "a red mineral once ground up to make vermilion paint" }, { n: "Mercury(II) oxide", f: "HgO", p: ["Hg", "O"] }] },
+  Tl: { f: ["Named after the Greek 'thallos', a green shoot, for the bright green line in its light.", "It's very poisonous."], u: ["Special optical glass", "Heart scans (in tiny doses)"], c: [] },
+  Pb: { a: "A heavy, soft, grey metal. The Romans made water pipes from it, and the word 'plumbing' comes from its Latin name, plumbum.",
+    f: ["Lead is toxic, so it's no longer used in paint or petrol.", "It blocks X-rays, which is why you wear a lead apron at the dentist."],
+    u: ["Car batteries", "X-ray shielding aprons", "Fishing weights (being replaced by safer metals)"],
+    c: [{ n: "Galena", f: "PbS", p: ["Pb", "S"], note: "the shiny grey ore lead comes from" },
+        { n: "Lead sulfate", f: "PbSO4", p: ["Pb", "S", "O"], note: "forms inside a car battery as it gives out electricity" },
+        { n: "Lead oxide", f: "PbO", p: ["Pb", "O"] }] },
+  Bi: { a: "A heavy metal that grows amazing rainbow-coloured staircase crystals.",
+    f: ["The rainbow colours come from a very thin layer of oxide on the crystal's surface.", "Unlike its neighbour lead, bismuth is quite safe. It's even in stomach medicine."],
+    u: ["Pink upset-stomach medicine", "Lead-free solder and fishing weights", "Plugs in fire sprinklers that melt when hot"],
+    c: [{ n: "Bismuth oxychloride", f: "BiOCl", p: ["Bi", "O", "Cl"], note: "gives some makeup a pearly shimmer" }, { n: "Bismuth oxide", f: "Bi2O3", p: ["Bi", "O"] }] },
+  Po: { f: ["Discovered by Marie and Pierre Curie in 1898 and named after Poland, Marie's home country.", "It's extremely radioactive."], u: ["Anti-static brushes (in the past)", "Heaters on early Soviet Moon rovers"], c: [] },
+  At: { f: ["One of the rarest naturally occurring elements. There's only a tiny pinch of it in all of Earth's crust at any moment.", "Its name means 'unstable' in Greek."], u: ["Being tested as a cancer treatment"], c: [] },
+  Rn: { a: "A radioactive noble gas that seeps out of the ground from uranium in rocks.",
+    f: ["It's invisible and has no smell, so homes in some areas are tested for it."], u: ["Earthquake research", "Cancer treatment (in the past)"], c: [] },
+  Fr: { f: ["Extremely rare and radioactive. It was one of the last elements to be discovered in nature, in 1939, by Marguerite Perey, who named it after France."], u: ["Scientific research only"], c: [] },
+  Ra: { f: ["Discovered by Marie and Pierre Curie in 1898. Its name comes from the Latin for 'ray'.", "It glows faintly, and was once painted on watch dials until people learned how dangerous it was."], u: ["Glow-in-the-dark watch dials (in the past)", "A cancer treatment (radium-223)"], c: [] },
+  Ac: { f: ["Actinium is so radioactive that it glows a pale blue in the dark."], u: ["Cancer treatment research"], c: [] },
+  Th: { f: ["Named after Thor, the Norse god of thunder.", "It's only mildly radioactive, and could fuel future nuclear reactors."], u: ["Gas lantern mantles (in the past)", "Possible future nuclear fuel"], c: [{ n: "Thorium dioxide", f: "ThO2", p: ["Th", "O"], note: "has one of the highest melting points of any oxide" }] },
+  Pa: { f: ["One of the rarest and most expensive natural elements."], u: ["Scientific research"], c: [] },
+  U: { a: "A heavy, radioactive metal. Splitting its atoms releases huge amounts of energy.",
+    f: ["Named after the planet Uranus.", "Glass with a little uranium in it glows bright green under UV light.", "1 kg of uranium-235 can release as much energy as burning about 3,000 tonnes of coal."],
+    u: ["Nuclear power stations", "Vintage glowing 'uranium glass'", "Powering some submarines"],
+    c: [{ n: "Uranium dioxide", f: "UO2", p: ["U", "O"], note: "pressed into fuel pellets for power stations" }, { n: "Uranium hexafluoride", f: "UF6", p: ["U", "F"] }] },
+  Np: { f: ["The first element heavier than uranium ever made (1940). It's named after Neptune, the planet after Uranus."], u: ["Making plutonium-238 for spacecraft"], c: [] },
+  Pu: { a: "A radioactive metal made in nuclear reactors. One type, plutonium-238, gives off steady heat for decades.",
+    f: ["Named after Pluto, which comes after Neptune.", "Voyager 1 and 2, and the Curiosity and Perseverance Mars rovers, are powered by plutonium-238."],
+    u: ["Power for deep-space probes and Mars rovers", "Nuclear reactors"], c: [{ n: "Plutonium dioxide", f: "PuO2", p: ["Pu", "O"], note: "the form used in spacecraft power packs" }] },
+  Am: { f: ["A tiny speck of americium-241 is inside most household smoke detectors.", "Named after the Americas."], u: ["Smoke detectors"], c: [{ n: "Americium dioxide", f: "AmO2", p: ["Am", "O"], note: "the form used in smoke detectors" }] },
+  Cm: { f: ["Named after Marie and Pierre Curie."], u: ["Instruments that analyse rocks on Mars rovers"], c: [] },
+  Bk: { f: ["Named after Berkeley, California, where it was first made in 1949."], u: ["Making heavier elements, such as tennessine"], c: [] },
+  Cf: { f: ["Named after California.", "It gives off lots of neutrons, so it can be used to start up nuclear reactors."], u: ["Starting nuclear reactors", "Finding layers of oil and water underground"], c: [] },
+  Es: { f: ["Discovered in the debris of the first hydrogen-bomb test in 1952, and named after Albert Einstein."], u: ["Scientific research only"], c: [] },
+  Fm: { f: ["Also found in hydrogen-bomb debris, and named after physicist Enrico Fermi."], u: ["Scientific research only"], c: [] },
+  Md: { f: ["Named after Dmitri Mendeleev, who created the periodic table. The first experiments made just 17 atoms."], u: ["Scientific research only"], c: [] },
+  No: { f: ["Named after Alfred Nobel, who founded the Nobel Prizes."], u: ["Scientific research only"], c: [] },
+  Lr: { f: ["Named after Ernest Lawrence, who invented the cyclotron particle accelerator."], u: ["Scientific research only"], c: [] },
+  Rf: { f: ["Named after Ernest Rutherford, who discovered the atomic nucleus."] },
+  Db: { f: ["Named after Dubna, a Russian town famous for its nuclear research lab."] },
+  Sg: { f: ["Named after Glenn Seaborg, the first element named after a living person."] },
+  Bh: { f: ["Named after Niels Bohr, who came up with the idea of electron shells, like the ones in the picture above."] },
+  Hs: { f: ["Named after Hesse, the German state where it was first made."] },
+  Mt: { f: ["Named after Lise Meitner, who helped discover nuclear fission."] },
+  Ds: { f: ["Named after Darmstadt, the German city where it was first made."] },
+  Rg: { f: ["Named after Wilhelm Röntgen, who discovered X-rays."] },
+  Cn: { f: ["Named after Nicolaus Copernicus, who showed that Earth goes around the Sun."] },
+  Nh: { f: ["Named after Japan ('Nihon' in Japanese). It was the first element discovered in Asia."] },
+  Fl: { f: ["Named after the Flerov Laboratory in Dubna, Russia."] },
+  Mc: { f: ["Named after the Moscow region of Russia."] },
+  Lv: { f: ["Named after Lawrence Livermore National Laboratory in California."] },
+  Ts: { f: ["Named after the US state of Tennessee, home of the Oak Ridge laboratory."] },
+  Og: { f: ["Named after Yuri Oganessian, only the second element named after a living person.", "It's the heaviest element ever made."] },
+};
+
+/* =====================================================================
+   APP
+   ===================================================================== */
+(function () {
+  "use strict";
+  const BY_SYM = {}; ELEMENTS.forEach(e => (BY_SYM[e.sym] = e));
+  const FAMILY_ORDER = Object.keys(FAMILIES);
+  const reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const $ = id => document.getElementById(id);
+
+  function hexA(hex, a) {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+  }
+  function fx(s) { // chemical formula → HTML with subscripts
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/([A-Za-z\)])(\d+)/g, "$1<sub>$2</sub>");
+  }
+  const ease = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+
+  if (typeof THREE === "undefined" || !THREE.OrbitControls) { $("fallback").hidden = false; $("fallback").querySelector("p").textContent = "The 3D library couldn't load. Check your internet connection and reload the page."; return; }
+
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({ canvas: $("scene"), antialias: true, powerPreference: "high-performance" }); }
+  catch (e) { $("fallback").hidden = false; return; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(innerWidth, innerHeight, false);
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x05060f);
+  scene.fog = new THREE.FogExp2(0x05060f, 0.0045);
+  const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 3000);
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true; controls.dampingFactor = 0.07;
+  controls.rotateSpeed = 0.55; controls.zoomSpeed = 0.9; controls.panSpeed = 0.7;
+  controls.minDistance = 3; controls.maxDistance = 190;
+  controls.screenSpacePanning = true;
+
+  const world = new THREE.Group(); scene.add(world);
+
+  /* ---------- shared textures ---------- */
+  function radialTexture(stops, size = 128) {
+    const c = document.createElement("canvas"); c.width = c.height = size;
+    const g = c.getContext("2d"); const gr = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    stops.forEach(([o, col]) => gr.addColorStop(o, col)); g.fillStyle = gr; g.fillRect(0, 0, size, size);
+    return new THREE.CanvasTexture(c);
+  }
+  const glowTex = radialTexture([[0, "rgba(255,255,255,0.9)"], [0.25, "rgba(255,255,255,0.35)"], [0.6, "rgba(255,255,255,0.07)"], [1, "rgba(255,255,255,0)"]]);
+  const nebulaTex = radialTexture([[0, "rgba(255,255,255,0.55)"], [0.35, "rgba(255,255,255,0.18)"], [1, "rgba(255,255,255,0)"]], 256);
+
+  function roundRect(g, x, y, w, h, r) {
+    g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+  }
+  function fitFont(g, text, weight, family, size, maxW) {
+    let s = size; g.font = `${weight} ${s}px ${family}`;
+    while (g.measureText(text).width > maxW && s > 10) { s -= 2; g.font = `${weight} ${s}px ${family}`; }
+    return s;
+  }
+  const maxAniso = renderer.capabilities.getMaxAnisotropy();
+  const DISPLAY = '"Unbounded", "Trebuchet MS", sans-serif', BODY = '"Atkinson Hyperlegible", "Segoe UI", sans-serif', MONO = '"JetBrains Mono", Menlo, monospace';
+
+  function tileTexture(el) {
+    const W = 256, H = 320, c = document.createElement("canvas"); c.width = W; c.height = H;
+    const g = c.getContext("2d"); const col = FAMILIES[el.family].color;
+    roundRect(g, 8, 8, W - 16, H - 16, 28);
+    const gr = g.createLinearGradient(0, 0, W * 0.6, H);
+    gr.addColorStop(0, hexA(col, 0.5)); gr.addColorStop(0.5, "rgba(16,19,42,0.97)"); gr.addColorStop(1, "rgba(8,10,24,0.98)");
+    g.fillStyle = gr; g.fill();
+    g.lineWidth = 7; g.strokeStyle = col; g.stroke();
+    g.textBaseline = "alphabetic"; g.fillStyle = "#ffffff";
+    g.font = `700 40px ${MONO}`; g.textAlign = "left"; g.fillText(String(el.z), 26, 62);
+    g.font = `500 21px ${MONO}`; g.textAlign = "right"; g.fillStyle = "rgba(225,230,255,0.75)";
+    g.fillText(el.mass, W - 24, 56);
+    g.textAlign = "center"; g.fillStyle = "#ffffff";
+    fitFont(g, el.sym, 800, DISPLAY, 122, W - 44);
+    g.shadowColor = col; g.shadowBlur = 26; g.fillText(el.sym, W / 2, 205); g.shadowBlur = 0;
+    g.fillStyle = "rgba(240,243,255,0.95)";
+    fitFont(g, el.name, 700, BODY, 32, W - 36); g.fillText(el.name, W / 2, 266);
+    const t = new THREE.CanvasTexture(c); t.anisotropy = maxAniso; return t;
+  }
+  function labelTexture(text, color) {
+    const c = document.createElement("canvas"); const g = c.getContext("2d");
+    g.font = `700 52px ${DISPLAY}`; const w = Math.ceil(g.measureText(text).width) + 60;
+    c.width = w; c.height = 92; g.font = `700 52px ${DISPLAY}`;
+    g.textAlign = "center"; g.textBaseline = "middle"; g.fillStyle = color; g.shadowColor = color; g.shadowBlur = 18;
+    g.fillText(text, w / 2, 48);
+    const t = new THREE.CanvasTexture(c); t.anisotropy = maxAniso; return { tex: t, aspect: w / 92 };
+  }
+  const outlineTex = (() => {
+    const c = document.createElement("canvas"); c.width = 280; c.height = 344; const g = c.getContext("2d");
+    roundRect(g, 10, 10, 260, 324, 34); g.lineWidth = 8; g.strokeStyle = "#fff"; g.shadowColor = "#fff"; g.shadowBlur = 12; g.stroke();
+    return new THREE.CanvasTexture(c);
+  })();
+
+  /* ---------- starfield ---------- */
+  (function stars() {
+    const N = 3200, pos = new Float32Array(N * 3), col = new Float32Array(N * 3);
+    const tints = [[1, 1, 1], [0.75, 0.85, 1], [1, 0.9, 0.75], [0.9, 0.8, 1]];
+    for (let i = 0; i < N; i++) {
+      const r = 260 + Math.random() * 900, th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1);
+      pos[i * 3] = r * Math.sin(ph) * Math.cos(th); pos[i * 3 + 1] = r * Math.cos(ph) * 0.7; pos[i * 3 + 2] = r * Math.sin(ph) * Math.sin(th);
+      const t = tints[i % 4], b = 0.45 + Math.random() * 0.55;
+      col[i * 3] = t[0] * b; col[i * 3 + 1] = t[1] * b; col[i * 3 + 2] = t[2] * b;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3)); geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    const pts = new THREE.Points(geo, new THREE.PointsMaterial({ size: 1.6, sizeAttenuation: false, vertexColors: true, fog: false, transparent: true, opacity: 0.9 }));
+    pts.name = "stars"; scene.add(pts);
+  })();
+
+  /* ---------- layouts ---------- */
+  const SX = 1.38, SY = 1.68; // tile spacing
+  const CLUSTER_AT = { // family cluster centres for the galaxy view, loosely echoing where each family sits in the real table
+    "alkali": [-24, 6, 2], "alkaline-earth": [-19.5, -3.5, -3], "transition": [-3, 2.5, 0], "post-transition": [10.5, -3.5, 2.5],
+    "metalloid": [9, 8, -3.5], "nonmetal": [17.5, 4.2, 1], "halogen": [18.5, -4.6, -2.5], "noble-gas": [25.5, 0, 3.5],
+    "lanthanide": [-9.5, -11.5, 2.5], "actinide": [3.5, -12, -3],
+  };
+  const galaxyPos = {}, clusterInfo = {};
+  FAMILY_ORDER.forEach(fam => {
+    const members = ELEMENTS.filter(e => e.family === fam);
+    const n = members.length, cols = Math.ceil(Math.sqrt(n * 1.7)), rows = Math.ceil(n / cols);
+    const [cx, cy, cz] = CLUSTER_AT[fam];
+    members.forEach((e, i) => {
+      const r = Math.floor(i / cols), inRow = r === rows - 1 ? n - r * cols : cols, c = i % cols;
+      const x = cx + (c - (inRow - 1) / 2) * SX, y = cy + ((rows - 1) / 2 - r) * SY;
+      const z = cz + Math.sin(e.z * 12.9898) * 0.35;
+      galaxyPos[e.sym] = new THREE.Vector3(x, y, z);
+    });
+    clusterInfo[fam] = { center: new THREE.Vector3(cx, cy, cz), top: cy + (rows / 2) * SY + 0.7, n, cols, rows };
+  });
+  const tablePos = {};
+  ELEMENTS.forEach(e => {
+    let col, row;
+    if (e.group) { col = e.group; row = e.period; }
+    else { col = 3 + (e.z - (e.period === 6 ? 57 : 89)); row = e.period + 2.6; }
+    tablePos[e.sym] = new THREE.Vector3((col - 9.5) * SX, (5.3 - row) * SY, 0);
+  });
+
+  /* ---------- tiles ---------- */
+  const tileGeo = new THREE.PlaneGeometry(1.08, 1.35);
+  const nodes = [], pickables = [];
+  function buildTiles() {
+    ELEMENTS.forEach((el, i) => {
+      const color = new THREE.Color(FAMILIES[el.family].color);
+      const node = new THREE.Group();
+      const mat = new THREE.MeshBasicMaterial({ map: tileTexture(el), transparent: true, alphaTest: 0.03, depthWrite: true });
+      const tile = new THREE.Mesh(tileGeo, mat); tile.renderOrder = 1; tile.userData.el = el;
+      const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0.55 }));
+      glow.scale.set(3.0, 3.4, 1); glow.renderOrder = 2;
+      node.add(glow); node.add(tile);
+      const start = galaxyPos[el.sym].clone();
+      node.position.copy(start);
+      node.userData = { el, tile, glow, base: start.clone(), from: start.clone(), to: start.clone(), phase: Math.random() * Math.PI * 2, hover: 0, op: 1, gop: 0.55 };
+      world.add(node); nodes.push(node); pickables.push(tile); el.node = node;
+    });
+  }
+
+  /* family labels + nebulae */
+  const labels = [], nebulae = [];
+  FAMILY_ORDER.forEach(fam => {
+    const info = clusterInfo[fam], f = FAMILIES[fam];
+    const { tex, aspect } = labelTexture(f.label.toUpperCase(), f.color);
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0.95 }));
+    const h = 0.62; s.scale.set(h * aspect, h, 1); s.position.set(info.center.x, info.top + 0.25, info.center.z);
+    s.userData = { fam, op: 1 }; s.renderOrder = 3; world.add(s); labels.push(s);
+    const neb = new THREE.Sprite(new THREE.SpriteMaterial({ map: nebulaTex, color: new THREE.Color(f.color), blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0.16 }));
+    const ns = Math.max(info.cols * SX, info.rows * SY) * 2.4 + 6; neb.scale.set(ns, ns * 0.8, 1);
+    neb.position.copy(info.center).add(new THREE.Vector3(0, 0, -2.5)); neb.userData = { fam, op: 0.16 }; neb.renderOrder = 0;
+    world.add(neb); nebulae.push(neb);
+  });
+
+  const selRing = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.6), new THREE.MeshBasicMaterial({ map: outlineTex, transparent: true, depthWrite: false, opacity: 0 }));
+  selRing.renderOrder = 4; selRing.visible = false;
+
+  /* ---------- camera choreography ---------- */
+  const state = { layout: "galaxy", highlight: null, selected: null, tween: null, lastInput: performance.now(), swayPhase: 0, viewX: 0, viewY: 0, layoutStart: 0 };
+
+  function layoutBounds() {
+    const box = new THREE.Box3();
+    ELEMENTS.forEach(e => box.expandByPoint(state.layout === "galaxy" ? galaxyPos[e.sym] : tablePos[e.sym]));
+    if (state.layout === "galaxy") box.max.y += 1.5;
+    return box;
+  }
+  function homeView() {
+    const box = layoutBounds(), size = box.getSize(new THREE.Vector3()), center = box.getCenter(new THREE.Vector3());
+    const vfov = THREE.MathUtils.degToRad(camera.fov), aspect = Math.max(0.3, (innerWidth - reservedLeft()) / innerHeight);
+    const dH = (size.y / 2 + 1.5) / Math.tan(vfov / 2), dW = (size.x / 2 + 1.5) / (Math.tan(vfov / 2) * aspect);
+    const d = Math.max(dH, dW) * 1.04 + 2;
+    const tilt = state.layout === "galaxy" ? 0.2 : 0.06;
+    return { pos: center.clone().add(new THREE.Vector3(d * 0.04, d * tilt, d)), target: center };
+  }
+  function flyTo(pos, target, dur = 1500) {
+    state.tween = { p0: camera.position.clone(), t0: controls.target.clone(), p1: pos.clone(), t1: target.clone(), start: performance.now(), dur: reduceMotion ? 300 : dur };
+  }
+  function flyHome(dur) { const h = homeView(); flyTo(h.pos, h.target, dur); }
+  function flyToElement(el) {
+    const node = el.node; const target = world.localToWorld(node.userData.to.clone());
+    const cur = camera.position.clone().sub(controls.target).normalize();
+    const front = new THREE.Vector3(0, 0.12, 1).normalize();
+    const dir = cur.lerp(front, 0.65).normalize();
+    const dist = innerWidth <= 820 ? 12 : 7.5;
+    flyTo(target.clone().add(dir.multiplyScalar(dist)), target, 1400);
+  }
+
+  /* ---------- layout switching ---------- */
+  function setLayout(name) {
+    if (name === state.layout) return;
+    state.layout = name; state.layoutStart = performance.now();
+    $("layGalaxy").setAttribute("aria-pressed", name === "galaxy"); $("layTable").setAttribute("aria-pressed", name === "table");
+    nodes.forEach(n => { n.userData.from.copy(n.userData.base); n.userData.to.copy((name === "galaxy" ? galaxyPos : tablePos)[n.userData.el.sym]); });
+    if (state.selected) flyToElement(state.selected); else flyHome(1800);
+  }
+
+  /* ---------- highlight ---------- */
+  function setHighlight(fam) {
+    state.highlight = state.highlight === fam ? null : fam;
+    document.querySelectorAll("#legendList button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.fam === state.highlight)));
+    $("legend").classList.toggle("dim", !!state.highlight);
+    $("clearHl").hidden = !state.highlight;
+    const sp = $("spotlight");
+    if (state.highlight) {
+      const f = FAMILIES[state.highlight];
+      sp.style.setProperty("--c", f.color);
+      sp.innerHTML = `<h3>${f.label}</h3><p>${f.blurb}</p>`; sp.hidden = false; $("hint").style.opacity = 0;
+    } else sp.hidden = true;
+  }
+
+  /* ---------- legend ---------- */
+  $("legendList").innerHTML = FAMILY_ORDER.map(k => {
+    const f = FAMILIES[k], n = ELEMENTS.filter(e => e.family === k).length;
+    return `<li><button type="button" data-fam="${k}" aria-pressed="false" style="--c:${f.color}"><span class="dot"></span>${f.label}<span class="count">${n}</span></button></li>`;
+  }).join("");
+  $("legendList").addEventListener("click", e => { const b = e.target.closest("button[data-fam]"); if (b) setHighlight(b.dataset.fam); });
+  $("clearHl").addEventListener("click", () => setHighlight(state.highlight));
+  const mqSmall = matchMedia("(max-width: 640px)");
+  function syncLegend() { $("legend").dataset.collapsed = mqSmall.matches ? "true" : "false"; $("legendToggle").setAttribute("aria-expanded", String(!mqSmall.matches)); }
+  syncLegend(); mqSmall.addEventListener ? mqSmall.addEventListener("change", syncLegend) : mqSmall.addListener(syncLegend);
+  $("legendToggle").addEventListener("click", () => {
+    const open = $("legend").dataset.collapsed === "true"; $("legend").dataset.collapsed = open ? "false" : "true"; $("legendToggle").setAttribute("aria-expanded", String(open));
+  });
+
+  /* ---------- detail panel ---------- */
+  const panel = $("panel"), pBody = $("pBody");
+  const STATE_TEXT = { gas: "Gas", liquid: "Liquid", solid: "Solid", "solid*": "Solid (predicted)", unknown: "Unknown" };
+  function valenceNote(el) {
+    const outer = el.shells[el.shells.length - 1], g = el.group;
+    if (el.sym === "H") return "<strong>1 electron</strong> in its only shell. Hydrogen can share it or give it away, which is why it joins with so many other elements.";
+    if (el.sym === "He") return "Its single shell is <strong>full with 2 electrons</strong>, so helium has no reason to react.";
+    if (el.z >= 104) return "These shell numbers are scientists' predictions: too few atoms have ever existed to measure them.";
+    if (g === 1) return `<strong>1 electron</strong> in the outer shell. It's desperate to give it away, which makes ${el.name.toLowerCase()} very reactive.`;
+    if (g === 2) return `<strong>2 electrons</strong> in the outer shell, which ${el.name.toLowerCase()} gives away when it reacts.`;
+    if (g === 13) return `<strong>3 electrons</strong> in the outer shell.`;
+    if (g === 14) return `<strong>4 electrons</strong> in the outer shell, halfway to full, so it usually <em>shares</em> electrons.`;
+    if (g === 15) return `<strong>5 electrons</strong> in the outer shell. It needs 3 more to fill it.`;
+    if (g === 16) return `<strong>6 electrons</strong> in the outer shell. It grabs 2 more when it reacts.`;
+    if (g === 17) return `<strong>7 electrons</strong> in the outer shell, just 1 short of full. That's why halogens are so reactive.`;
+    if (g === 18) return `The outer shell is <strong>full with ${outer} electrons</strong>, so it hardly ever reacts.`;
+    if (el.family === "transition") return "Transition metals can use electrons from their <strong>outer two shells</strong> when they react. That's one reason their compounds come in so many colours.";
+    return "In this series, the electrons fill a shell <strong>deep inside</strong> the atom, which is why all these elements behave so alike.";
+  }
+  function neutrons(el) {
+    const m = el.mass.replace(/[\[\]]/g, ""); return Math.max(0, Math.round(parseFloat(m)) - el.z);
+  }
+  function elChip(sym, selfSym) {
+    const e = BY_SYM[sym], c = FAMILIES[e.family].color;
+    if (sym === selfSym) return `<span class="rx-el self" style="--ec:${c}"><b>${e.sym}</b>${e.name}</span>`;
+    return `<button type="button" class="rx-el" data-go="${e.sym}" style="--ec:${c}" title="Go to ${e.name}"><b>${e.sym}</b>${e.name}</button>`;
+  }
+  function renderPanel(el) {
+    const fam = FAMILIES[el.family], d = DETAILS[el.sym] || {}, c = fam.color;
+    panel.style.setProperty("--c", c);
+    const about = d.a || fam.blurb;
+    const facts = d.f || [], uses = d.u || [], combos = d.c || [];
+    const superheavy = el.z >= 104;
+    let rx;
+    if (combos.length) {
+      rx = `<div class="rx-list">${combos.map(cb => {
+        const parts = cb.p.map(s => elChip(s, el.sym)).join('<span class="rx-op">+</span>');
+        return `<div class="rx"><div class="rx-eq">${parts}<span class="rx-op">→</span><span class="rx-prod"><span class="fx">${fx(cb.f)}</span></span></div>
+          <div class="rx-meta"><span><strong style="color:var(--ink)">${cb.n}</strong>${cb.note ? ": " + cb.note : ""}</span>${cb.e ? `<span>Equation: <code>${fx(cb.e)}</code></span>` : ""}</div></div>`;
+      }).join("")}</div>`;
+    } else if (el.family === "noble-gas") {
+      rx = `<p class="rx-empty">Almost none. A full outer shell means ${el.name.toLowerCase()} has no need to share or swap electrons, so it stays on its own.</p>`;
+    } else if (superheavy || el.z >= 99) {
+      rx = `<p class="rx-empty">Only a handful of atoms have ever been made, and they break apart within seconds or less, so there are no everyday compounds to show.</p>`;
+    } else {
+      rx = `<p class="rx-empty">It doesn't have well-known everyday compounds, but like other ${fam.label.toLowerCase()} it reacts with oxygen to form an oxide.</p>`;
+    }
+    const prev = BY_SYM[ELEMENTS[(el.z + 116) % 118].sym], next = ELEMENTS[el.z % 118];
+    pBody.innerHTML = `
+      <div class="p-head">
+        <div class="p-tile"><span class="z">${el.z}</span><span class="sym">${el.sym}</span><span class="m">${el.mass}</span></div>
+        <div style="min-width:0">
+          <button type="button" class="fam-chip" id="famChip" title="Highlight all ${fam.label.toLowerCase()}">${fam.label.replace(/s$/, "")}${superheavy && el.z >= 109 ? " (predicted)" : ""}</button>
+          <h2>${el.name}</h2>
+        </div>
+      </div>
+      <p class="about">${about}</p>
+      <dl class="ident">
+        <div><dt>Atomic no.</dt><dd>${el.z}</dd></div>
+        <div><dt>Atomic mass</dt><dd>${el.mass}</dd></div>
+        <div><dt>Type</dt><dd>${fam.kind}</dd></div>
+        <div><dt>Group</dt><dd>${el.group || "f-block"}</dd></div>
+        <div><dt>Period</dt><dd>${el.period}</dd></div>
+        <div><dt>At room temp.</dt><dd>${STATE_TEXT[el.state]}</dd></div>
+      </dl>
+      <section class="sec">
+        <h3>Inside the atom</h3>
+        <div class="atom-wrap">
+          <canvas id="atom" width="330" height="330" aria-label="Diagram of a ${el.name} atom with ${el.shells.length} electron shells holding ${el.shells.join(", ")} electrons"></canvas>
+          <div class="shell-row">${el.shells.map((n, i) => `<span>Shell ${i + 1}: <b>${n}</b></span>`).join("")}</div>
+          <p class="atom-note"><strong>${el.z} protons</strong> and about <strong>${neutrons(el)} neutrons</strong> in the nucleus, with <strong>${el.z} electrons</strong> around it. ${valenceNote(el)}</p>
+        </div>
+      </section>
+      <section class="sec reactions">
+        <h3>Combinations &amp; reactions</h3>
+        ${rx}
+      </section>
+      ${facts.length ? `<section class="sec"><h3>Cool facts</h3><ul class="list">${facts.map(f => `<li>${f}</li>`).join("")}</ul></section>` : ""}
+      ${uses.length ? `<section class="sec"><h3>Where you'll find it</h3><ul class="list">${uses.map(u => `<li>${u}</li>`).join("")}</ul></section>` : ""}
+      ${superheavy ? `<p class="note-box">Superheavy element: made a few atoms at a time in a particle accelerator. Its family and electron shells are predicted from where it sits in the table.</p>` : ""}
+      <nav class="p-nav" aria-label="Neighbouring elements">
+        <button type="button" data-go="${prev.sym}"><small>← ${prev.z}</small><span>${prev.name}</span></button>
+        <button type="button" data-go="${next.sym}"><small>${next.z} →</small><span>${next.name}</span></button>
+      </nav>`;
+    $("crumb").textContent = `${el.z} · ${el.sym} · period ${el.period}${el.group ? " · group " + el.group : ""}`;
+    $("famChip").addEventListener("click", () => setHighlight(el.family));
+    pBody.scrollTop = 0;
+    atomStart = performance.now();
+  }
+  pBody.addEventListener("click", e => { const b = e.target.closest("[data-go]"); if (b) select(BY_SYM[b.dataset.go]); });
+
+  function select(el) {
+    state.selected = el; renderPanel(el);
+    panel.classList.add("open"); panel.setAttribute("aria-hidden", "false");
+    el.node.add(selRing); selRing.visible = true;
+    flyToElement(el); hideHint(); updateViewOffset();
+  }
+  function closePanel() {
+    if (!state.selected) return;
+    state.selected = null; panel.classList.remove("open"); panel.setAttribute("aria-hidden", "true");
+    selRing.visible = false; if (selRing.parent) selRing.parent.remove(selRing);
+    updateViewOffset();
+  }
+  $("pClose").addEventListener("click", closePanel);
+  $("pPrev").addEventListener("click", () => state.selected && select(ELEMENTS[(state.selected.z + 116) % 118]));
+  $("pNext").addEventListener("click", () => state.selected && select(ELEMENTS[state.selected.z % 118]));
+
+  /* atom diagram */
+  let atomStart = 0;
+  function drawAtom(now) {
+    const cv = $("atom"); if (!cv || !state.selected) return;
+    const el = state.selected, dpr = Math.min(devicePixelRatio || 1, 2), size = cv.clientWidth || 300;
+    if (cv.width !== Math.round(size * dpr)) { cv.width = cv.height = Math.round(size * dpr); }
+    const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, size, size);
+    const C = size / 2, n = el.shells.length, col = FAMILIES[el.family].color;
+    const nucR = Math.min(size * 0.085, 9 + Math.sqrt(el.z) * 1.1);
+    const rMin = nucR + size * 0.07, rMax = size * 0.47, step = n > 1 ? (rMax - rMin) / (n - 1) : 0;
+    const t = reduceMotion ? 0 : (now - atomStart) / 1000;
+    // nucleus
+    const nn = neutrons(el), total = Math.min(el.z + nn, 70), pr = el.z / (el.z + nn || 1);
+    const ball = Math.max(2.2, nucR / Math.sqrt(total) * 0.95);
+    for (let i = 0; i < total; i++) {
+      const a = i * 2.39996, r = Math.sqrt(i / total) * (nucR - ball * 0.6);
+      g.beginPath(); g.arc(C + Math.cos(a) * r, C + Math.sin(a) * r, ball, 0, Math.PI * 2);
+      g.fillStyle = Math.floor((i + 1) * pr) > Math.floor(i * pr) ? "#ff6b81" : "#b9c3e0"; // protons red, neutrons grey
+      g.fill();
+    }
+    // shells + electrons
+    for (let s = 0; s < n; s++) {
+      const r = n > 1 ? rMin + s * step : (rMin + rMax) / 2;
+      g.beginPath(); g.arc(C, C, r, 0, Math.PI * 2); g.strokeStyle = "rgba(170,185,255,0.28)"; g.lineWidth = 1.2; g.stroke();
+      const k = el.shells[s], speed = 0.9 / (1 + s * 0.45), dir = s % 2 ? -1 : 1, er = k > 20 ? 2.6 : k > 10 ? 3.2 : 4.2;
+      for (let j = 0; j < k; j++) {
+        const a = (j / k) * Math.PI * 2 + t * speed * dir + s * 0.6;
+        const x = C + Math.cos(a) * r, y = C + Math.sin(a) * r;
+        g.beginPath(); g.arc(x, y, er * 2.2, 0, Math.PI * 2); g.fillStyle = hexA(col, 0.18); g.fill();
+        g.beginPath(); g.arc(x, y, er, 0, Math.PI * 2); g.fillStyle = col; g.fill();
+      }
+    }
+  }
+
+  /* ---------- search ---------- */
+  const q = $("q"), results = $("results"); let hits = [], active = 0;
+  function runSearch() {
+    const s = q.value.trim().toLowerCase();
+    if (!s) { results.hidden = true; hits = []; return; }
+    const score = e => {
+      const sym = e.sym.toLowerCase(), name = e.name.toLowerCase();
+      if (sym === s || String(e.z) === s) return 0;
+      if (name === s) return 1; if (name.startsWith(s)) return 2; if (sym.startsWith(s)) return 3;
+      if (name.includes(s)) return 4; if (s === "aluminum" && e.sym === "Al") return 1; if (s === "cesium" && e.sym === "Cs") return 1; if (s === "sulphur" && e.sym === "S") return 1;
+      return 99;
+    };
+    hits = ELEMENTS.map(e => [score(e), e]).filter(x => x[0] < 99).sort((a, b) => a[0] - b[0] || a[1].z - b[1].z).slice(0, 8).map(x => x[1]);
+    active = 0; renderHits();
+  }
+  function renderHits() {
+    if (!hits.length) { results.innerHTML = `<li style="padding:8px 10px;color:var(--muted)">No element matches “${q.value.replace(/</g, "&lt;")}”</li>`; results.hidden = false; return; }
+    results.innerHTML = hits.map((e, i) => `<li><button type="button" role="option" aria-selected="${i === active}" data-i="${i}"><span class="mini-sym" style="--c:${FAMILIES[e.family].color}">${e.sym}</span><span>${e.name}</span><span class="z">#${e.z}</span></button></li>`).join("");
+    results.hidden = false;
+  }
+  function choose(e) { if (!e) return; results.hidden = true; q.value = ""; q.blur(); select(e); }
+  q.addEventListener("input", runSearch);
+  q.addEventListener("keydown", e => {
+    if (e.key === "ArrowDown" && hits.length) { active = (active + 1) % hits.length; renderHits(); e.preventDefault(); }
+    else if (e.key === "ArrowUp" && hits.length) { active = (active + hits.length - 1) % hits.length; renderHits(); e.preventDefault(); }
+    else if (e.key === "Enter") { choose(hits[active]); }
+    else if (e.key === "Escape") { q.value = ""; results.hidden = true; q.blur(); }
+  });
+  results.addEventListener("click", e => { const b = e.target.closest("button[data-i]"); if (b) choose(hits[+b.dataset.i]); });
+  document.addEventListener("pointerdown", e => { if (!e.target.closest(".search")) results.hidden = true; });
+
+  /* ---------- buttons & keys ---------- */
+  $("surprise").addEventListener("click", () => {
+    let e; do { e = ELEMENTS[Math.floor(Math.random() * 118)]; } while (state.selected && e === state.selected);
+    select(e);
+  });
+  $("home").addEventListener("click", () => { closePanel(); flyHome(1500); });
+  $("layGalaxy").addEventListener("click", () => setLayout("galaxy"));
+  $("layTable").addEventListener("click", () => setLayout("table"));
+  document.addEventListener("keydown", e => {
+    if (e.target === q) return;
+    if (e.key === "Escape") closePanel();
+    else if (e.key === "/") { e.preventDefault(); q.focus(); }
+    else if (state.selected && e.key === "ArrowRight") select(ELEMENTS[state.selected.z % 118]);
+    else if (state.selected && e.key === "ArrowLeft") select(ELEMENTS[(state.selected.z + 116) % 118]);
+  });
+
+  /* ---------- picking ---------- */
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(); let hovered = null, down = null;
+  function pick(cx, cy) {
+    const r = renderer.domElement.getBoundingClientRect();
+    ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    const hit = ray.intersectObjects(pickables, false).find(h => h.object.material.opacity > 0.4);
+    return hit ? hit.object.userData.el : null;
+  }
+  const cvs = renderer.domElement;
+  function userInput() { state.lastInput = performance.now(); state.tween = null; hideHint(); }
+  cvs.addEventListener("pointerdown", e => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; userInput(); });
+  cvs.addEventListener("wheel", userInput, { passive: true });
+  cvs.addEventListener("pointerup", e => {
+    if (!down) return; const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
+    if (moved < 7 && performance.now() - down.t < 700) { const el = pick(e.clientX, e.clientY); if (el) select(el); }
+    down = null;
+  });
+  cvs.addEventListener("pointermove", e => {
+    if (e.pointerType !== "mouse" || down) return;
+    const el = pick(e.clientX, e.clientY); hovered = el; cvs.style.cursor = el ? "pointer" : "grab";
+  });
+  cvs.addEventListener("pointerleave", () => { hovered = null; });
+  let hintHidden = false;
+  function hideHint() { if (hintHidden) return; hintHidden = true; setTimeout(() => { $("hint").style.opacity = 0; }, 2500); }
+
+  /* ---------- view offset so the selected tile isn't hidden under the panel ---------- */
+  let viewTarget = { x: 0, y: 0 };
+  function reservedLeft() { // screen width covered by the legend on wide screens
+    const lg = $("legend"); return innerWidth > 640 && lg.dataset.collapsed !== "true" ? lg.getBoundingClientRect().right + 8 : 0;
+  }
+  function updateViewOffset() {
+    if (!state.selected) { viewTarget = { x: -reservedLeft() / 2, y: 0 }; return; }
+    if (innerWidth > 820) { viewTarget = { x: (panel.offsetWidth + 14) / 2, y: 0 }; return; }
+    // phone / tablet portrait: centre the tile in the strip between the toolbar and the bottom sheet
+    const hudBottom = document.querySelector(".top").getBoundingClientRect().bottom + 8;
+    const sheetTop = innerHeight - panel.offsetHeight;
+    viewTarget = { x: 0, y: innerHeight / 2 - (hudBottom + sheetTop) / 2 };
+  }
+  function resize() {
+    renderer.setSize(innerWidth, innerHeight, false);
+    camera.aspect = innerWidth / innerHeight; updateViewOffset(); camera.updateProjectionMatrix();
+  }
+  addEventListener("resize", resize);
+
+  /* ---------- main loop ---------- */
+  const tmpQ = new THREE.Quaternion(), invWorld = new THREE.Quaternion();
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    // camera tween
+    if (state.tween) {
+      const tw = state.tween, k = Math.min(1, (now - tw.start) / tw.dur), e = ease(k);
+      camera.position.lerpVectors(tw.p0, tw.p1, e); controls.target.lerpVectors(tw.t0, tw.t1, e);
+      if (k >= 1) state.tween = null;
+    }
+    controls.update();
+    // ambient sway when idle (frozen while a panel is open so the camera target stays put)
+    const idle = !state.selected && !state.tween && now - state.lastInput > 5000 && !reduceMotion;
+    if (idle) state.swayPhase += dt * 0.1;
+    world.rotation.y = Math.sin(state.swayPhase) * (state.layout === "galaxy" ? 0.16 : 0.07);
+    // view offset easing
+    state.viewX += (viewTarget.x - state.viewX) * 0.08; state.viewY += (viewTarget.y - state.viewY) * 0.08;
+    if (Math.abs(state.viewX) > 0.5 || Math.abs(state.viewY) > 0.5) camera.setViewOffset(innerWidth, innerHeight, state.viewX, state.viewY, innerWidth, innerHeight);
+    else if (camera.view && camera.view.enabled) camera.clearViewOffset();
+    camera.updateProjectionMatrix();
+
+    world.updateMatrixWorld();
+    invWorld.copy(world.quaternion).invert(); tmpQ.copy(invWorld).multiply(camera.quaternion);
+    const lt = Math.min(1, (now - state.layoutStart) / 1700);
+    const t = now / 1000, hl = state.highlight, sel = state.selected;
+    for (let i = 0; i < nodes.length; i++) {
+      const n = nodes[i], u = n.userData;
+      if (lt < 1) { const k = Math.max(0, Math.min(1, (now - state.layoutStart - i * 4) / 1200)); u.base.lerpVectors(u.from, u.to, ease(k)); }
+      else u.base.copy(u.to);
+      n.position.copy(u.base);
+      if (!reduceMotion) n.position.y += Math.sin(t * 0.7 + u.phase) * 0.06;
+      u.tile.quaternion.copy(tmpQ);
+      const on = !hl || u.el.family === hl || u.el === sel;
+      u.op += ((on ? 1 : 0.12) - u.op) * 0.12; u.tile.material.opacity = u.op;
+      const gt = !on ? 0.03 : (hl ? 0.95 : 0.5) + (u.el === sel ? 0.4 : 0);
+      u.gop += (gt - u.gop) * 0.1; u.glow.material.opacity = u.gop;
+      u.hover += (((hovered === u.el) ? 1 : 0) - u.hover) * 0.2;
+      const s = 1 + u.hover * 0.14 + (u.el === sel ? 0.12 : 0); n.scale.setScalar(s);
+    }
+    if (selRing.visible) { selRing.quaternion.copy(tmpQ); selRing.position.set(0, 0, 0.02); selRing.material.opacity = 0.55 + Math.sin(t * 3) * 0.35; }
+    const galaxyVis = state.layout === "galaxy" ? 1 : 0;
+    labels.forEach(l => { const tgt = galaxyVis * (!hl || hl === l.userData.fam ? 0.95 : 0.15); l.userData.op += (tgt - l.userData.op) * 0.08; l.material.opacity = l.userData.op; l.visible = l.userData.op > 0.01; });
+    nebulae.forEach(nb => { const tgt = galaxyVis * (!hl ? 0.16 : hl === nb.userData.fam ? 0.3 : 0.03); nb.userData.op += (tgt - nb.userData.op) * 0.06; nb.material.opacity = nb.userData.op; nb.visible = nb.userData.op > 0.005; });
+    const stars = scene.getObjectByName("stars"); if (stars && !reduceMotion) stars.rotation.y += dt * 0.004;
+    if (sel && panel.classList.contains("open")) drawAtom(now);
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------- boot: wait briefly for fonts so tile text renders in the right typeface ---------- */
+  const fontLoads = document.fonts ? Promise.all([`800 100px "Unbounded"`, `700 40px "Unbounded"`, `700 30px "Atkinson Hyperlegible"`, `700 30px "JetBrains Mono"`, `500 20px "JetBrains Mono"`].map(f => document.fonts.load(f))) : Promise.resolve();
+  Promise.race([fontLoads, new Promise(r => setTimeout(r, 2500))]).catch(() => {}).then(() => {
+    buildTiles();
+    updateViewOffset();
+    const h = homeView();
+    camera.position.copy(h.pos).add(new THREE.Vector3(0, 70, 200)); controls.target.copy(h.target);
+    flyTo(h.pos, h.target, reduceMotion ? 10 : 3600);
+    requestAnimationFrame(frame);
+  });
+})();
+</script>
+<!--@FRAGMENT-END@-->
+</body>
+</html>
