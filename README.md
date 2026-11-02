@@ -10,7 +10,10 @@ family clusters. Tap any tile to open a field-guide panel with:
 
 Other features: search by name, symbol or number (press `/`); **Surprise me** for a random element;
 click a family in the legend to light it up; switch between **Galaxy** (family clusters) and **Table** (classic layout);
-arrow keys step through the elements while a panel is open; works with touch (drag to orbit, pinch to zoom).
+arrow keys step through the elements while a panel is open.
+
+Controls: left-drag rotates, right-drag (or two fingers) slides across the table, and scroll zooms toward the pointer
+(pinch on touch). Clicking a tile flies to it and makes it the centre of rotation; **Reset view** returns to the overview.
 
 ## Run it
 

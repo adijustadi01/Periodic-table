@@ -112,6 +112,8 @@ sub { font-size: 0.72em; line-height: 0; }
 
 .hint { margin-left: auto; margin-right: auto; padding: 8px 14px; font-size: 13px; color: var(--muted); transition: opacity 0.8s; text-align: center; }
 .hint b { color: var(--ink); font-weight: 700; }
+.hint-touch { display: none; }
+@media (pointer: coarse) { .hint-mouse { display: none; } .hint-touch { display: inline; } }
 
 /* ---------- Detail panel ---------- */
 #panel {
@@ -208,7 +210,7 @@ button.rx-el:hover { background: color-mix(in srgb, var(--ec) 32%, transparent);
   #legendToggle { display: inline-flex; }
   .legend { position: absolute; bottom: 64px; left: max(16px, env(safe-area-inset-left, 0px)); }
   .legend[data-collapsed="true"] { display: none; }
-  .hint { display: none; }
+  .hint { position: absolute; left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); bottom: 64px; pointer-events: none; }
   .spotlight { max-width: none; flex: 1; }
   .p-head { grid-template-columns: 88px 1fr; }
   .p-tile .sym { font-size: 32px; }
@@ -255,7 +257,10 @@ button.rx-el:hover { background: color-mix(in srgb, var(--ec) 32%, transparent);
       <ul id="legendList"></ul>
     </div>
     <div class="spotlight glass" id="spotlight" hidden></div>
-    <div class="hint glass" id="hint"><b>Drag</b> to spin · <b>scroll or pinch</b> to zoom · <b>right-drag or two fingers</b> to slide · <b>tap a tile</b> to open it</div>
+    <div class="hint glass" id="hint" role="status">
+      <span class="hint-mouse"><b>Left-drag</b> rotate · <b>Right-drag</b> slide · <b>Scroll</b> zoom to the pointer · <b>Click</b> a tile to fly to it</span>
+      <span class="hint-touch"><b>One finger</b> rotate · <b>Two fingers</b> slide &amp; pinch to zoom · <b>Tap</b> a tile</span>
+    </div>
   </div>
 </div>
 
@@ -1883,6 +1888,10 @@ const DETAILS = {
   controls.rotateSpeed = 0.55; controls.zoomSpeed = 0.9; controls.panSpeed = 0.7;
   controls.minDistance = 3; controls.maxDistance = 190;
   controls.screenSpacePanning = true;
+  controls.enablePan = true; controls.enableZoom = true; controls.enableRotate = true;
+  // left-drag = rotate, right-drag = pan (slide), middle = zoom; one finger = rotate, two fingers = pan + pinch zoom
+  controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+  controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
 
   const world = new THREE.Group(); scene.add(world);
 
@@ -2022,7 +2031,7 @@ const DETAILS = {
   selRing.renderOrder = 4; selRing.visible = false;
 
   /* ---------- camera choreography ---------- */
-  const state = { layout: "galaxy", highlight: null, selected: null, tween: null, lastInput: performance.now(), swayPhase: 0, viewX: 0, viewY: 0, layoutStart: 0 };
+  const state = { layout: "galaxy", highlight: null, selected: null, tween: null, lastInput: performance.now(), swayPhase: 0, atHome: false, viewX: 0, viewY: 0, layoutStart: 0 };
 
   function layoutBounds() {
     const box = new THREE.Box3();
@@ -2039,9 +2048,11 @@ const DETAILS = {
     return { pos: center.clone().add(new THREE.Vector3(d * 0.04, d * tilt, d)), target: center };
   }
   function flyTo(pos, target, dur = 1500) {
-    state.tween = { p0: camera.position.clone(), t0: controls.target.clone(), p1: pos.clone(), t1: target.clone(), start: performance.now(), dur: reduceMotion ? 300 : dur };
+    state.atHome = false;
+    state.tween = { p0: camera.position.clone(), t0: controls.target.clone(), p1: pos.clone(), t1: target.clone(), start: performance.now(), dur: reduceMotion ? 300 : dur, done: null };
   }
-  function flyHome(dur) { const h = homeView(); flyTo(h.pos, h.target, dur); }
+  function fitZoomLimit() { const h = homeView(); controls.maxDistance = h.pos.distanceTo(h.target) * 1.8; }
+  function flyHome(dur) { const h = homeView(); flyTo(h.pos, h.target, dur); state.tween.done = () => { state.atHome = true; }; }
   function flyToElement(el) {
     const node = el.node; const target = world.localToWorld(node.userData.to.clone());
     const cur = camera.position.clone().sub(controls.target).normalize();
@@ -2054,7 +2065,7 @@ const DETAILS = {
   /* ---------- layout switching ---------- */
   function setLayout(name) {
     if (name === state.layout) return;
-    state.layout = name; state.layoutStart = performance.now();
+    state.layout = name; state.layoutStart = performance.now(); fitZoomLimit();
     $("layGalaxy").setAttribute("aria-pressed", name === "galaxy"); $("layTable").setAttribute("aria-pressed", name === "table");
     nodes.forEach(n => { n.userData.from.copy(n.userData.base); n.userData.to.copy((name === "galaxy" ? galaxyPos : tablePos)[n.userData.el.sym]); });
     if (state.selected) flyToElement(state.selected); else flyHome(1800);
@@ -2265,7 +2276,15 @@ const DETAILS = {
     let e; do { e = ELEMENTS[Math.floor(Math.random() * 118)]; } while (state.selected && e === state.selected);
     select(e);
   });
-  $("home").addEventListener("click", () => { closePanel(); flyHome(1500); });
+  $("home").addEventListener("click", resetView);
+  function resetView() {
+    closePanel();
+    // undo any ambient sway, keeping the current view on screen while the world snaps back
+    const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -world.rotation.y);
+    camera.position.applyQuaternion(q); controls.target.applyQuaternion(q);
+    state.swayPhase = 0; world.rotation.y = 0; state.lastInput = performance.now();
+    flyHome(1500); showHint(5000);
+  }
   $("layGalaxy").addEventListener("click", () => setLayout("galaxy"));
   $("layTable").addEventListener("click", () => setLayout("table"));
   document.addEventListener("keydown", e => {
@@ -2286,9 +2305,33 @@ const DETAILS = {
     return hit ? hit.object.userData.el : null;
   }
   const cvs = renderer.domElement;
-  function userInput() { state.lastInput = performance.now(); state.tween = null; hideHint(); }
+  function userInput() { state.lastInput = performance.now(); state.tween = null; state.atHome = false; hideHint(); }
+
+  /* Zoom toward the pointer: the point under the cursor stays put, so you can zoom into any corner of the table
+     instead of always into the orbit centre. Zooming far out eases the centre back to the middle of the table. */
+  const zPlane = new THREE.Plane(), zHit = new THREE.Vector3(), zDir = new THREE.Vector3();
+  document.addEventListener("wheel", e => {
+    if (e.target !== cvs) return;
+    e.preventDefault(); e.stopPropagation(); // handled here instead of by OrbitControls
+    userInput();
+    const delta = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+    let s = Math.exp(Math.max(-1, Math.min(1, delta / 300)) * 0.35);
+    const dist = camera.position.distanceTo(controls.target);
+    s = Math.max(controls.minDistance / dist, Math.min(controls.maxDistance / dist, s));
+    const r = cvs.getBoundingClientRect();
+    ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    camera.getWorldDirection(zDir); zPlane.setFromNormalAndCoplanarPoint(zDir, controls.target);
+    const anchor = ray.ray.intersectPlane(zPlane, zHit) ? zHit : controls.target;
+    camera.position.sub(anchor).multiplyScalar(s).add(anchor);
+    controls.target.sub(anchor).multiplyScalar(s).add(anchor);
+    if (s > 1) { // zooming out: drift the orbit centre home so the whole table always comes back into view
+      const h = homeView(), homeDist = h.pos.distanceTo(h.target), nd = dist * s;
+      const pull = Math.max(0, Math.min(1, (nd - homeDist * 0.45) / homeDist)) * 0.3;
+      if (pull > 0) { const shift = h.target.clone().sub(controls.target).multiplyScalar(pull); controls.target.add(shift); camera.position.add(shift); }
+    }
+  }, { capture: true, passive: false });
   cvs.addEventListener("pointerdown", e => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; userInput(); });
-  cvs.addEventListener("wheel", userInput, { passive: true });
   cvs.addEventListener("pointerup", e => {
     if (!down) return; const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
     if (moved < 7 && performance.now() - down.t < 700) { const el = pick(e.clientX, e.clientY); if (el) select(el); }
@@ -2300,7 +2343,9 @@ const DETAILS = {
   });
   cvs.addEventListener("pointerleave", () => { hovered = null; });
   let hintHidden = false;
-  function hideHint() { if (hintHidden) return; hintHidden = true; setTimeout(() => { $("hint").style.opacity = 0; }, 2500); }
+  let hintTimer = 0;
+  function showHint(ms) { clearTimeout(hintTimer); $("hint").style.opacity = 1; hintHidden = false; hintTimer = setTimeout(() => { $("hint").style.opacity = 0; hintHidden = true; }, ms); }
+  function hideHint() { if (hintHidden) return; hintHidden = true; clearTimeout(hintTimer); hintTimer = setTimeout(() => { $("hint").style.opacity = 0; }, 2500); }
 
   /* ---------- view offset so the selected tile isn't hidden under the panel ---------- */
   let viewTarget = { x: 0, y: 0 };
@@ -2317,7 +2362,7 @@ const DETAILS = {
   }
   function resize() {
     renderer.setSize(innerWidth, innerHeight, false);
-    camera.aspect = innerWidth / innerHeight; updateViewOffset(); camera.updateProjectionMatrix();
+    camera.aspect = innerWidth / innerHeight; updateViewOffset(); camera.updateProjectionMatrix(); fitZoomLimit();
   }
   addEventListener("resize", resize);
 
@@ -2330,11 +2375,11 @@ const DETAILS = {
     if (state.tween) {
       const tw = state.tween, k = Math.min(1, (now - tw.start) / tw.dur), e = ease(k);
       camera.position.lerpVectors(tw.p0, tw.p1, e); controls.target.lerpVectors(tw.t0, tw.t1, e);
-      if (k >= 1) state.tween = null;
+      if (k >= 1) { const done = tw.done; state.tween = null; if (done) done(); }
     }
     controls.update();
     // ambient sway when idle (frozen while a panel is open so the camera target stays put)
-    const idle = !state.selected && !state.tween && now - state.lastInput > 5000 && !reduceMotion;
+    const idle = state.atHome && !state.selected && !state.tween && now - state.lastInput > 5000 && !reduceMotion;
     if (idle) state.swayPhase += dt * 0.1;
     world.rotation.y = Math.sin(state.swayPhase) * (state.layout === "galaxy" ? 0.16 : 0.07);
     // view offset easing
@@ -2375,10 +2420,11 @@ const DETAILS = {
   const fontLoads = document.fonts ? Promise.all([`800 100px "Unbounded"`, `700 40px "Unbounded"`, `700 30px "Atkinson Hyperlegible"`, `700 30px "JetBrains Mono"`, `500 20px "JetBrains Mono"`].map(f => document.fonts.load(f))) : Promise.resolve();
   Promise.race([fontLoads, new Promise(r => setTimeout(r, 2500))]).catch(() => {}).then(() => {
     buildTiles();
-    updateViewOffset();
+    updateViewOffset(); fitZoomLimit();
     const h = homeView();
     camera.position.copy(h.pos).add(new THREE.Vector3(0, 70, 200)); controls.target.copy(h.target);
-    flyTo(h.pos, h.target, reduceMotion ? 10 : 3600);
+    flyTo(h.pos, h.target, reduceMotion ? 10 : 3600); state.tween.done = () => { state.atHome = true; };
+    showHint(12000);
     requestAnimationFrame(frame);
   });
 })();
