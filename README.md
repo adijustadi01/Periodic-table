@@ -17,6 +17,9 @@ two fingers on a touchscreen, the arrow keys, or the on-screen arrow pad. The mo
 (the + and − buttons and keys also work). Clicking a tile flies to it and makes it the centre of rotation.
 **Reset view** returns to the overview, and if you ever end up looking at empty space a "Back to the table" button appears.
 
+To give the table the whole screen, press **Hide** (top-left) or the **H** key; **Show controls** or **H** brings everything back,
+and the choice is remembered. On short or narrow windows the family list folds into a **Families** button.
+
 ## Run it
 
 - **Offline (recommended):** double-click `periodic-table.html`. Three.js, the orbit controls and the fonts are all

@@ -218,9 +218,6 @@ body.panel-open .navpad { transform: translateX(-454px); }
   .search { width: 100%; order: 3; }
   .tools .label { display: none; }
   .btn { padding: 0 12px; }
-  #legendToggle { display: inline-flex; }
-  .legend { position: absolute; bottom: 64px; left: max(16px, env(safe-area-inset-left, 0px)); }
-  .legend[data-collapsed="true"] { display: none; }
   .hint { margin: 0; position: absolute; left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); bottom: 150px; pointer-events: none; }
   .navpad { grid-template-columns: repeat(3, 34px) 4px 34px; grid-template-rows: repeat(3, 34px); }
   .spotlight { max-width: none; flex: 1; }
@@ -229,6 +226,18 @@ body.panel-open .navpad { transform: translateX(-454px); }
   .p-head h2 { font-size: 23px; }
   .ident { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+/* Narrow or short windows: the family list folds into a "Families" button */
+@media (max-width: 640px), (max-height: 760px) {
+  #legendToggle { display: inline-flex; }
+  .legend { position: absolute; z-index: 3; bottom: calc(max(14px, env(safe-area-inset-bottom, 0px)) + 52px); left: max(16px, env(safe-area-inset-left, 0px)); max-height: calc(100% - 170px); overflow-y: auto; }
+  .legend[data-collapsed="true"] { display: none; }
+  .navpad { grid-template-columns: repeat(3, 34px) 4px 34px; grid-template-rows: repeat(3, 34px); }
+}
+/* "Hide controls": everything but the show button (and rescue prompts) disappears */
+#uiToggle, #legendToggle { pointer-events: auto; }
+#uiToggle svg { width: 18px; height: 18px; }
+body.ui-hidden #hud .top > :not(#uiToggle), body.ui-hidden #hud .bottom > :not(#lost) { display: none !important; }
+body.ui-hidden #uiToggle { background: var(--glass-strong); }
 @media (prefers-reduced-motion: reduce) {
   #panel { transition: none; }
   .hint { transition: none; }
@@ -239,6 +248,7 @@ body.panel-open .navpad { transform: translateX(-454px); }
 
 <div id="hud">
   <div class="top">
+    <button class="btn" id="uiToggle" type="button" aria-pressed="false" title="Hide controls (H)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A9.9 9.9 0 0 1 12 5c5 0 9 4.5 10 7a13 13 0 0 1-2.6 3.7M6.6 6.6A13 13 0 0 0 2 12c1 2.5 5 7 10 7a9.8 9.8 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg><span class="label">Hide</span></button>
     <div class="brand">
       <h1>Element <span>Galaxy</span></h1>
       <p>118 elements in 10 families · tap any tile to explore it</p>
@@ -279,7 +289,7 @@ body.panel-open .navpad { transform: translateX(-454px); }
     </div>
     <button type="button" class="btn primary lost" id="lost" hidden>Nothing here. Back to the table</button>
     <div class="hint glass" id="hint" role="status">
-      <span class="hint-mouse"><b>Drag</b> rotate · <b>Right-drag, Shift+drag, two-finger swipe or arrow keys</b> slide · <b>Wheel or pinch</b> zoom · <b>Click</b> a tile</span>
+      <span class="hint-mouse"><b>Drag</b> rotate · <b>Right-drag, Shift+drag, two-finger swipe or arrow keys</b> slide · <b>Wheel or pinch</b> zoom · <b>Click</b> a tile · <b>H</b> hide controls</span>
       <span class="hint-touch"><b>One finger</b> rotate · <b>Two fingers</b> slide &amp; pinch to zoom · <b>Arrows</b> bottom-right slide · <b>Tap</b> a tile</span>
     </div>
   </div>
@@ -1016,7 +1026,8 @@ const DETAILS = {
   function homeView() {
     const box = layoutBounds(), size = box.getSize(new THREE.Vector3()), center = box.getCenter(new THREE.Vector3());
     const vfov = THREE.MathUtils.degToRad(camera.fov), aspect = Math.max(0.3, (innerWidth - reservedLeft()) / innerHeight);
-    const dH = (size.y / 2 + 1.5) / Math.tan(vfov / 2), dW = (size.x / 2 + 1.5) / (Math.tan(vfov / 2) * aspect);
+    const usableH = Math.max(0.4, (innerHeight - reservedTop()) / innerHeight);
+    const dH = (size.y / 2 + 1.5) / (Math.tan(vfov / 2) * usableH), dW = (size.x / 2 + 1.5) / (Math.tan(vfov / 2) * aspect);
     const d = Math.max(dH, dW) * 1.04 + 2;
     const tilt = state.layout === "galaxy" ? 0.2 : 0.06;
     return { pos: center.clone().add(new THREE.Vector3(d * 0.04, d * tilt, d)), target: center };
@@ -1066,7 +1077,7 @@ const DETAILS = {
   }).join("");
   $("legendList").addEventListener("click", e => { const b = e.target.closest("button[data-fam]"); if (b) setHighlight(b.dataset.fam); });
   $("clearHl").addEventListener("click", () => setHighlight(state.highlight));
-  const mqSmall = matchMedia("(max-width: 640px)");
+  const mqSmall = matchMedia("(max-width: 640px), (max-height: 760px)");
   function syncLegend() { $("legend").dataset.collapsed = mqSmall.matches ? "true" : "false"; $("legendToggle").setAttribute("aria-expanded", String(!mqSmall.matches)); }
   syncLegend(); mqSmall.addEventListener ? mqSmall.addEventListener("change", syncLegend) : mqSmall.addListener(syncLegend);
   $("legendToggle").addEventListener("click", () => {
@@ -1245,6 +1256,21 @@ const DETAILS = {
   results.addEventListener("click", e => { const b = e.target.closest("button[data-i]"); if (b) choose(hits[+b.dataset.i]); });
   document.addEventListener("pointerdown", e => { if (!e.target.closest(".search")) results.hidden = true; });
 
+  /* ---------- hide / show all controls ---------- */
+  const EYE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12c1-2.5 5-7 10-7s9 4.5 10 7c-1 2.5-5 7-10 7S3 14.5 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const EYE_OFF = $("uiToggle").innerHTML.replace(/<span[\s\S]*$/, "");
+  function setUiHidden(hide) {
+    document.body.classList.toggle("ui-hidden", hide);
+    const b = $("uiToggle");
+    b.setAttribute("aria-pressed", String(hide));
+    b.title = hide ? "Show controls (H)" : "Hide controls (H)";
+    b.innerHTML = (hide ? EYE : EYE_OFF) + `<span class="label">${hide ? "Show controls" : "Hide"}</span>`;
+    if (hide) results.hidden = true;
+    try { localStorage.setItem("eg-ui-hidden", hide ? "1" : "0"); } catch (e) {}
+    updateViewOffset(); fitZoomLimit();
+  }
+  $("uiToggle").addEventListener("click", () => setUiHidden(!document.body.classList.contains("ui-hidden")));
+
   /* ---------- buttons & keys ---------- */
   $("surprise").addEventListener("click", () => {
     let e; do { e = ELEMENTS[Math.floor(Math.random() * 118)]; } while (state.selected && e === state.selected);
@@ -1265,6 +1291,7 @@ const DETAILS = {
     if (e.target === q) return;
     if (e.key === "Escape") closePanel();
     else if (e.key === "/") { e.preventDefault(); q.focus(); }
+    else if ((e.key === "h" || e.key === "H") && !e.ctrlKey && !e.metaKey && !e.altKey) setUiHidden(!document.body.classList.contains("ui-hidden"));
     else if (!state.selected && e.key.startsWith("Arrow")) { e.preventDefault(); padAction({ ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down" }[e.key]); }
     else if (e.key === "+" || e.key === "=") padAction("in");
     else if (e.key === "-" || e.key === "_") padAction("out");
@@ -1381,10 +1408,14 @@ const DETAILS = {
   /* ---------- view offset so the selected tile isn't hidden under the panel ---------- */
   let viewTarget = { x: 0, y: 0 };
   function reservedLeft() { // screen width covered by the legend on wide screens
-    const lg = $("legend"); return innerWidth > 640 && lg.dataset.collapsed !== "true" ? lg.getBoundingClientRect().right + 8 : 0;
+    const lg = $("legend"); return !mqSmall.matches && !document.body.classList.contains("ui-hidden") && lg.dataset.collapsed !== "true" ? lg.getBoundingClientRect().right + 8 : 0;
+  }
+  function reservedTop() { // screen height covered by the top toolbar (0 when controls are hidden)
+    if (document.body.classList.contains("ui-hidden")) return 0;
+    return Math.max(0, document.querySelector(".top").getBoundingClientRect().bottom + 6);
   }
   function updateViewOffset() {
-    if (!state.selected) { viewTarget = { x: -reservedLeft() / 2, y: 0 }; return; }
+    if (!state.selected) { viewTarget = { x: -reservedLeft() / 2, y: -reservedTop() / 2 }; return; }
     if (innerWidth > 820) { viewTarget = { x: (panel.offsetWidth + 14) / 2, y: 0 }; return; }
     // phone / tablet portrait: centre the tile in the strip between the toolbar and the bottom sheet
     const hudBottom = document.querySelector(".top").getBoundingClientRect().bottom + 8;
@@ -1479,6 +1510,7 @@ const DETAILS = {
   const fontLoads = document.fonts ? Promise.all([`800 100px "Unbounded"`, `700 40px "Unbounded"`, `700 30px "Atkinson Hyperlegible"`, `700 30px "JetBrains Mono"`, `500 20px "JetBrains Mono"`].map(f => document.fonts.load(f))) : Promise.resolve();
   Promise.race([fontLoads, new Promise(r => setTimeout(r, 2500))]).catch(() => {}).then(() => {
     buildTiles();
+    try { if (localStorage.getItem("eg-ui-hidden") === "1") setUiHidden(true); } catch (e) {}
     updateViewOffset(); fitZoomLimit();
     const h = homeView();
     camera.position.copy(h.pos).add(new THREE.Vector3(0, 70, 200)); controls.target.copy(h.target);
